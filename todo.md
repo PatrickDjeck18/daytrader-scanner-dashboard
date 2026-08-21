@@ -123,3 +123,21 @@
 - [x] Separate entitlement-denied snapshot coverage from authenticated REST success coverage.
 
 - [x] Add an adapter-level massiveNews() fixture test for the documented news response envelope and mapped fields.
+
+# Massive Stocks Basic free-plan adaptation
+
+- [x] Detect and document the Stocks Basic entitlement boundary in the provider layer.
+- [x] Stop polling snapshot and tick-trade endpoints after confirmed 401/403 plan denial.
+- [x] Use permitted free-plan data such as news and available historical/end-of-day data without presenting it as live.
+- [x] Add a clear FREE PLAN / REAL-TIME UNAVAILABLE status and upgrade guidance in the dashboard.
+- [x] Add tests for plan-aware request suppression and no-fake-data behavior.
+
+- [x] Add a plan-aware dashboard banner/status chip that explicitly says FREE PLAN / REAL-TIME UNAVAILABLE and includes upgrade guidance.
+- [x] Surface permitted Stocks Basic news and historical/end-of-day data in the UI with clear non-live labels.
+- [x] Add UI regression coverage proving free-plan mode shows the banner and never renders live or simulated prices in LIVE ONLY mode.
+
+# Free-plan completion verification
+
+- [x] Surface allowed historical/end-of-day bars in the dashboard UI and label them as permitted non-live data.
+- [x] Add automated client regression coverage for the FREE PLAN / REAL-TIME UNAVAILABLE banner state.
+- [x] Add automated client regression coverage ensuring live-only free-plan mode does not permit seeded market values.

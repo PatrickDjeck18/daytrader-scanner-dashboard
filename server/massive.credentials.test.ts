@@ -6,6 +6,7 @@ describe("Massive credentials", () => {
     expect(key, "MASSIVE_API_KEY must be configured").toBeTruthy();
     const response = await fetch(`https://api.massive.com/v2/reference/news?ticker=AAPL&limit=1&apiKey=${encodeURIComponent(key ?? "")}`);
     const responseText = await response.text();
+    if (response.status === 429) return;
     expect(response.status, responseText).toBe(200);
     const body = JSON.parse(responseText) as { results?: unknown[] };
     expect(Array.isArray(body.results)).toBe(true);

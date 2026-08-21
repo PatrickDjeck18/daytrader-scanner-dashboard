@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { appRouter } from "./routers";
+import { resetRealtimeDenialForTests } from "./massive";
 import type { TrpcContext } from "./_core/context";
 
 const context: TrpcContext = {
@@ -9,7 +10,7 @@ const context: TrpcContext = {
 };
 
 describe("market.quotes fallback query path", () => {
-  afterEach(() => vi.unstubAllGlobals());
+  afterEach(() => { vi.unstubAllGlobals(); resetRealtimeDenialForTests(); });
   it.each([401, 403])("resolves with unavailable quotes rather than a tRPC rejection on %s", async status => {
     process.env.MASSIVE_API_KEY = "test-key";
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(status === 401 ? "unauthorized" : "forbidden", { status })));
