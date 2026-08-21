@@ -213,3 +213,10 @@
 - [x] Expand the real Finnhub quote universe beyond the original eight seed symbols.
 - [x] Create quote-only rows from provider responses with unknown optional metadata, never fabricated prices or fundamentals.
 - [x] Add regression coverage proving provider-backed rows make the expanded scanner control reachable.
+
+# Deployment timeout investigation
+
+- [x] Inspect deployment logs, package scripts, generated assets, and project size for timeout causes.
+- [x] Fix any code, build, dependency, or packaging issue responsible for deployment timeout.
+- [x] Run production build, TypeScript, and Vitest validation after the fix.
+- [x] Save a verified checkpoint and document whether any remaining timeout is infrastructure-related.
