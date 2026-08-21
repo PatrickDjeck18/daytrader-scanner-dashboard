@@ -4,6 +4,10 @@ import { updateProviderHealth } from "./db";
 
 const baseUrl = "https://finnhub.io/api/v1";
 const socketUrl = "wss://ws.finnhub.io";
+const SYMBOL_CACHE_TTL_MS = 6 * 60 * 60 * 1000;
+let symbolCache: { expiresAt: number; symbols: FinnhubSymbol[] } | undefined;
+
+export type FinnhubSymbol = { symbol: string; displaySymbol?: string; description?: string; type?: string; exchange?: string; mic?: string; currency?: string };
 
 type FinnhubQuote = { c?: number; d?: number; dp?: number; h?: number; l?: number; pc?: number; t?: number };
 type FinnhubCandle = { c?: number[]; h?: number[]; l?: number[]; o?: number[]; t?: number[]; v?: number[]; vwap?: number[]; s?: string };
@@ -15,6 +19,8 @@ export function normalizeFinnhubQuote(body: FinnhubQuote, symbol: string): Marke
 export function normalizeFinnhubCandle(body: FinnhubCandle, symbol: string): MarketBar[] { if (body.s !== "ok") return []; return (body.t ?? []).map((timestamp, i) => ({ symbol, open: body.o?.[i] ?? 0, close: body.c?.[i] ?? 0, high: body.h?.[i] ?? 0, low: body.l?.[i] ?? 0, volume: body.v?.[i] ?? 0, vwap: body.vwap?.[i] ?? body.c?.[i] ?? 0, start: timestamp * 1000, end: timestamp * 1000 + 60_000 })); }
 
 export async function fetchFinnhubQuote(symbol: string, token = key()): Promise<MarketQuote> { try { const response = await fetchWithTimeout(`${baseUrl}/quote?symbol=${encodeURIComponent(symbol)}&token=${encodeURIComponent(token)}`); if (!response.ok) return unavailable(symbol, `Finnhub quote request failed: ${response.status}`); const result = normalizeFinnhubQuote(await response.json() as FinnhubQuote, symbol); return result.price > 0 ? result : unavailable(symbol, "Finnhub returned no current quote"); } catch (error) { return unavailable(symbol, error instanceof Error ? error.message : "Finnhub quote request failed"); } }
+
+export async function finnhubSymbols(): Promise<FinnhubSymbol[]> { if (symbolCache && symbolCache.expiresAt > Date.now()) return symbolCache.symbols; const response = await fetchWithTimeout(`${baseUrl}/stock/symbol?exchange=US&token=${encodeURIComponent(key())}`, {}, 6_000); if (!response.ok) throw new Error(`Finnhub symbols request failed: ${response.status}`); const payload = await response.json() as FinnhubSymbol[]; const symbols = payload.filter(item => item.symbol && item.type === "Common Stock").map(item => ({ symbol: item.symbol.toUpperCase(), displaySymbol: item.displaySymbol, description: item.description, type: item.type, exchange: item.exchange, mic: item.mic, currency: item.currency })).sort((a, b) => a.symbol.localeCompare(b.symbol)); symbolCache = { expiresAt: Date.now() + SYMBOL_CACHE_TTL_MS, symbols }; return symbols; }
 
 export async function finnhubNews(symbol: string, from: string, to: string) { const response = await fetchWithTimeout(`${baseUrl}/company-news?symbol=${encodeURIComponent(symbol)}&from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}&token=${encodeURIComponent(key())}`); if (!response.ok) throw new Error(`Finnhub news request failed: ${response.status}`); const items = await response.json() as FinnhubNewsItem[]; return items.map((item, index) => ({ id: String(item.id ?? `${symbol}-${item.datetime ?? index}`), title: item.headline, article_url: item.url ?? "", published_utc: new Date((item.datetime ?? Date.now() / 1000) * 1000).toISOString(), tickers: item.related ? item.related.split(",").filter(Boolean) : [symbol], publisher: { name: item.source ?? "Finnhub" }, description: item.summary })); }
 

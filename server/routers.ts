@@ -7,7 +7,7 @@ import { assertRateLimit, clientKey, isAbortError, requestId, safeAudit } from "
 import { z } from "zod";
 import type { MarketQuote } from "@shared/scanner";
 import { massiveNews, massiveProvider } from "./massive";
-import { finnhubNews, finnhubProvider } from "./finnhub";
+import { finnhubNews, finnhubProvider, finnhubSymbols } from "./finnhub";
 import { addWatchlistItem, createAlertRule, createBacktestRun, createPaperOrder, createWatchlist, deleteAlertRule, deleteLayout, deletePreset, deleteWatchlist, deleteWatchlistItem, getProviderHealth, listAlertRules, listBacktestRuns, listLayouts, listPaperOrders, listPresets, listWatchlistItems, listWatchlists, paperAccountSummary, saveLayout, savePreset } from "./db";
 import { assertPaperOnlyOrder, replayBars, runScannerBacktest } from "./backtest";
 import { checkMassiveFlatFileHealth } from "./massive-flatfiles";
@@ -39,6 +39,7 @@ export const appRouter = router({
   market: router({
     quotes: publicProcedure.input(z.object({ symbols: z.array(z.string().trim().toUpperCase().regex(/^[A-Z.\-]{1,12}$/)).min(1).max(50) })).query(({ ctx, input }) => { assertRateLimit(`quotes:${clientKey(ctx.req)}`, 30, 60_000); return marketQuotes(input.symbols); }),
     news: publicProcedure.input(z.object({ ticker: z.string().trim().toUpperCase().regex(/^[A-Z.\-]{1,12}$/).optional(), limit: z.number().int().min(1).max(100).default(20) })).query(({ ctx, input }) => { assertRateLimit(`news:${clientKey(ctx.req)}`, 20, 60_000); if (process.env.FINNHUB_API_KEY && input.ticker) { const to = new Date().toISOString().slice(0, 10); const from = new Date(Date.now() - 7 * 86_400_000).toISOString().slice(0, 10); return finnhubNews(input.ticker, from, to).then(items => items.slice(0, input.limit)).catch(() => massiveNews(input.ticker, input.limit)); } return massiveNews(input.ticker, input.limit); }),
+    symbols: publicProcedure.query(({ ctx }) => { assertRateLimit(`symbols:${clientKey(ctx.req)}`, 5, 60_000); if (!process.env.FINNHUB_API_KEY) return []; return finnhubSymbols().catch(() => []); }),
     health: publicProcedure.query(() => getProviderHealth(activeProviderName)),
     flatFileHealth: publicProcedure.query(() => checkMassiveFlatFileHealth()),
     bars: publicProcedure.input(z.object({ symbol: z.string().trim().toUpperCase().regex(/^[A-Z.\-]{1,12}$/), from: z.string().min(1).max(40), to: z.string().min(1).max(40) })).query(({ ctx, input }) => { assertRateLimit(`bars:${clientKey(ctx.req)}`, 10, 60_000); return marketBars(input.symbol, input.from, input.to); }),

@@ -242,3 +242,40 @@
 - [x] Run TypeScript/Vitest, inspect browser console, and save a checkpoint.
 
 - [x] Add direct regression coverage for abort-error classification and safe market fallback behavior.
+
+# Full eligible-symbol scanner
+
+- [ ] Identify an authoritative provider-backed full-universe source compatible with the configured Finnhub/Massive plans.
+- [ ] Remove the fixed ten-symbol request cap only where the provider and rate limits support it.
+- [ ] Display all eligible returned symbols with pagination or virtualization so the UI remains usable.
+- [ ] Preserve caching, backoff, no-fake-data, and unavailable-state behavior.
+- [x] Add regression coverage, validate, visually verify, and save a checkpoint.
+
+# All-symbol directory mode
+
+- [x] Add a provider-backed U.S. ticker directory without fetching live quotes for every ticker.
+- [x] Add search and selection behavior that requests live data only for the selected symbol or capped scanner set.
+- [x] Clearly label directory entries without current quotes and preserve no-fake-data safeguards.
+- [x] Add regression coverage, validate, visually verify, and save a checkpoint.
+
+- [x] Bound symbol-directory provider latency so the panel resolves to a clear unavailable state instead of remaining in loading indefinitely.
+
+# Continuation: selected directory quotes and Finnhub webhook
+
+- [x] Include a searched directory ticker in the capped provider-backed live quote request set without exceeding the free-tier cap.
+- [x] Remove any duplicate market-bars helper declaration and confirm the server compiles cleanly.
+- [x] Add the managed FINNHUB_WEBHOOK_SECRET and a Finnhub webhook endpoint that acknowledges authenticated deliveries with 2xx immediately.
+- [x] Add webhook authentication and acknowledgement regression tests without persisting or fabricating event data.
+- [x] Run TypeScript, Vitest, production build, and browser verification for live-only unavailable states and selected-symbol behavior.
+- [x] Save the final validated checkpoint and provide the published project version.
+- [ ] Defer uncapped all-symbol live polling; directory search remains available and live requests stay capped by the free-tier policy.
+- [ ] Defer live execution permanently; only paper trading remains enabled.
+- [ ] Defer provider-plan upgrades and synthetic data in live-only mode.
+- [ ] Defer scheduled background polling and third-party notification delivery.
+- [ ] Defer webhook event side effects until an event schema and persistence policy are approved.
+- [x] Keep the selected-directory quote helper covered by a deterministic client regression test.
+- [x] Keep webhook acknowledgements side-effect free, bounded, and server-only.
+- [x] Keep the final checkpoint description explicit about live, delayed, unavailable, and deferred behavior.
+- [x] Keep final verification free of external network calls and database seeding.
+- [x] Keep all previous production-hardening regressions passing.
+- [x] Keep final delivery after checkpoint save only.

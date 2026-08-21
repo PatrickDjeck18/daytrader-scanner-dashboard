@@ -87,6 +87,7 @@ const sectors = [
   { name: "EV / Mobility", strength: 63, breadth: "6 / 12", movers: "RIVN · LCID", color: "#34d399" },
 ];
 
+export function getQuoteRequestSymbols(selected: string) { const normalized = selected.trim().toUpperCase(); if (!normalized || quoteUniverse.includes(normalized)) return quoteUniverse; return [...quoteUniverse.slice(0, 9), normalized]; }
 export const quoteUniverse = Array.from(new Set([...seedStocks.map(item => item.symbol), "AAPL", "AMD", "AMZN", "COIN", "GOOGL", "LCID", "META", "MSFT", "MSTR", "PLTR", "QBTS", "RIOT", "TSLA"])).slice(0, 10);
 const quoteColors = ["#a78bfa", "#38bdf8", "#f59e0b", "#34d399", "#fb7185", "#fb923c", "#22d3ee", "#c084fc"];
 export function providerQuoteToStock(quote: MarketQuote, index: number): Stock { return { symbol: quote.symbol, name: `${quote.symbol} · provider quote`, price: quote.price, change: quote.changePct, volume: quote.volume / 1_000_000, rvol: 0, float: "—", floatM: 0, marketCap: "—", spread: Math.max(.01, quote.ask - quote.bid), sector: "—", catalyst: "Finnhub quote", catalystType: "Quote", vwap: quote.vwap, high: quote.sessionHigh, low: quote.sessionLow, premarket: 0, tape: "Provider quote", color: quoteColors[index % quoteColors.length] }; }
@@ -143,6 +144,7 @@ export function shouldApplyOptionalScannerFilters(provider?: string) { return pr
 export function isProviderAwareScannerEligible(stock: Pick<Stock, "price" | "floatM" | "marketCap" | "volume" | "change" | "rvol" | "spread">, thresholds: { minPrice: number; minFloat: number; maxFloat: number; minMarketCap: number; minDollarVolume: number; minChange: number; minRvol: number; maxSpread: number }, provider?: string) { const optionalKnown = shouldApplyOptionalScannerFilters(provider); const marketCap = Number(stock.marketCap.replace(/[$TB]/g, "")) * (stock.marketCap.includes("T") ? 1000000 : stock.marketCap.includes("B") ? 1000 : 1); return stock.price >= thresholds.minPrice && (!optionalKnown || (stock.floatM >= thresholds.minFloat && stock.floatM <= thresholds.maxFloat && marketCap >= thresholds.minMarketCap && Number(stock.volume) * stock.price >= thresholds.minDollarVolume && stock.rvol >= thresholds.minRvol)) && stock.change >= thresholds.minChange && stock.spread <= thresholds.maxSpread; }
 
 export function getNewsItemKey(item: { time: string; symbol: string }, index: number) { return `${item.symbol}-${item.time}-${index}`; }
+export function filterDirectorySymbols<T extends { symbol: string; description?: string }>(symbols: T[], query: string, limit = 36) { const needle = query.trim().toUpperCase(); const matches = needle ? symbols.filter(item => `${item.symbol} ${item.description ?? ""}`.toUpperCase().includes(needle)) : symbols; return matches.slice(0, limit); }
 export function isFreshProviderRateLimit(health: { lastError?: string | null; updatedAt?: Date | string | number | null } | undefined, now = Date.now()) { if (!health?.lastError?.toLowerCase().includes("rate limit")) return false; const updatedAt = health.updatedAt instanceof Date ? health.updatedAt.getTime() : new Date(health.updatedAt ?? 0).getTime(); return Number.isFinite(updatedAt) && now - updatedAt >= 0 && now - updatedAt < 120_000; }
 export function getScannerDataNotice(scanner: string, provider: string) { return provider === "finnhub" && (scanner === "Relative Volume Leaders" || scanner === "Unusual Tape Activity") ? "RVOL UNAVAILABLE · Finnhub quote feed has no relative-volume history; ranked by percent change instead." : undefined; }
 export function getVisibleScannerRows<T>(rows: T[], showAll: boolean, limit = 12) { return showAll ? rows : rows.slice(0, limit); }
@@ -159,13 +161,13 @@ function Panel({ title, subtitle, children, className = "", action }: { title: s
 
 export default function Home() {
   const [stocks, setStocks] = useState(seedStocks);
-  const quoteSymbols = useMemo(() => quoteUniverse, []);
+  const [selected, setSelected] = useState("SMCI");
+  const quoteSymbols = useMemo(() => getQuoteRequestSymbols(selected), [selected]);
   // Massive entitlement failures are converted to typed fallback quotes server-side; do not retry them in the client.
   const liveQuotes = trpc.market.quotes.useQuery({ symbols: quoteSymbols }, MARKET_QUERY_OPTIONS);
   const providerHealth = trpc.market.health.useQuery(undefined, { refetchInterval: 30_000, retry: false });
   const flatFileHealth = trpc.market.flatFileHealth.useQuery(undefined, { refetchInterval: 60_000, retry: false });
   const [demoMode, setDemoMode] = useState(false);
-  const [selected, setSelected] = useState("SMCI");
   const [historyRange] = useState(() => { const to = new Date(); const from = new Date(to); from.setDate(from.getDate() - 5); return { from: from.toISOString().slice(0, 10), to: to.toISOString().slice(0, 10) }; });
   const delayedHistory = trpc.market.bars.useQuery({ symbol: selected, ...historyRange }, { retry: false, refetchInterval: 15 * 60_000 });
   const delayedNews = trpc.market.news.useQuery({ ticker: selected, limit: 8 }, { refetchInterval: 15 * 60_000, retry: false });
@@ -186,6 +188,7 @@ export default function Home() {
   const [customPresets, setCustomPresets] = useState<string[]>(() => { try { return JSON.parse(localStorage.getItem("arcane-presets") || "[]"); } catch { return []; } });
   const [newPresetName, setNewPresetName] = useState("");
   const [query, setQuery] = useState("");
+  const [directoryOpen, setDirectoryOpen] = useState(true);
   const [watchlist, setWatchlist] = useState(["NVDA", "SMCI", "IONQ", "BBAI"]);
   const [watchColumns, setWatchColumns] = useState(["LAST", "CHG", "ALERT"]);
   const [draggedTicker, setDraggedTicker] = useState<string | null>(null);
@@ -203,6 +206,8 @@ export default function Home() {
   const [showAllSymbols, setShowAllSymbols] = useState(false);
   const availablePresets = [...presets, ...customPresets];
   const [thresholds, setThresholds] = useState({ minPrice: "2.00", minFloat: "0", maxFloat: "5000", minMarketCap: "0", maxMarketCap: "5000000", minDollarVolume: "1", minChange: "2.00", minRvol: "2.00", maxSpread: "0.08" });
+  const symbolDirectory = trpc.market.symbols.useQuery(undefined, { staleTime: 6 * 60 * 60_000, retry: false });
+  const directoryMatches = useMemo(() => filterDirectorySymbols(symbolDirectory.data ?? [], query), [query, symbolDirectory.data]);
   const interval = useRef<number | null>(null);
   const alertKeys = useRef(new Set<string>());
   const displayStocks = demoMode ? stocks : stocks.filter(s => liveQuotes.data?.some(q => q.symbol === s.symbol && isLiveProviderSource(q.source)));
@@ -252,7 +257,8 @@ export default function Home() {
     <main className="dashboard-grid">
       <aside className="scanner-rail">
         <div className="rail-head"><div><span className="eyebrow">SCANNER DECK</span><h1>Market pulse</h1></div><button className="icon-btn"><PanelLeft size={15} /></button></div>
-        <div className="search-box"><Search size={14} /><input placeholder="Search symbol" value={query} onChange={e => setQuery(e.target.value)} /><kbd>/</kbd></div>
+        <div className="search-box"><Search size={14} /><input placeholder="Search all U.S. symbols" value={query} onChange={e => { setQuery(e.target.value); setDirectoryOpen(true); }} /><kbd>/</kbd></div>
+        {!demoMode && directoryOpen && <div className="symbol-directory"><div className="directory-head"><span>ALL U.S. SYMBOLS</span><button onClick={() => setDirectoryOpen(false)}>{symbolDirectory.data ? `${symbolDirectory.data.length.toLocaleString()} listed` : "Loading…"} ×</button></div>{symbolDirectory.isLoading ? <div className="directory-state">Loading provider symbol directory…</div> : symbolDirectory.data?.length ? <div className="directory-list">{directoryMatches.map(item => <button key={item.symbol} className="directory-row" onClick={() => { setSelected(item.symbol); setQuery(item.symbol); setDirectoryOpen(false); }}><b>{item.symbol}</b><span>{item.description || "Common stock"}</span></button>)}{directoryMatches.length === 36 && <div className="directory-state">Refine your search to browse more listed symbols.</div>}</div> : <div className="directory-state">Symbol directory unavailable. Live quotes remain limited to the active scanner set.</div>}</div>}
         <div className="rail-label">SCANNERS <span>10</span></div>
         <div className="scanner-list">{scannerNames.map((name, i) => <button key={name} onClick={() => setScanner(name)} className={`scanner-item ${scanner === name ? "active" : ""}`}><span className={`scanner-icon c${i}`}><Zap size={12} /></span><span>{name}</span><strong>{["48", "12", "31", "18", "22", "14", "9", "3", "27", "5"][i]}</strong></button>)}</div>
         <div className="rail-label preset-label">PRESETS <button className="icon-btn"><Plus size={13} /></button></div>

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { getFreePlanUiState, getNewsItemKey, getProviderAwareScannerRows, getScannerDataNotice, getVisibleScannerRows, isFreshProviderRateLimit, isProviderAwareScannerEligible, providerQuoteToStock, quoteUniverse, shouldApplyOptionalScannerFilters } from "./Home";
+import { filterDirectorySymbols, getFreePlanUiState, getQuoteRequestSymbols, getNewsItemKey, getProviderAwareScannerRows, getScannerDataNotice, getVisibleScannerRows, isFreshProviderRateLimit, isProviderAwareScannerEligible, providerQuoteToStock, quoteUniverse, shouldApplyOptionalScannerFilters } from "./Home";
 
 describe("free-plan dashboard state", () => {
   it("shows the entitlement banner when live snapshots are unavailable", () => {
@@ -34,6 +34,18 @@ describe("free-plan dashboard state", () => {
     expect(isFreshProviderRateLimit({ lastError: "Finnhub rate limit reached; retry later", updatedAt: now - 30_000 }, now)).toBe(true);
     expect(isFreshProviderRateLimit({ lastError: "Finnhub rate limit reached; retry later", updatedAt: now - 120_000 }, now)).toBe(false);
     expect(isFreshProviderRateLimit({ lastError: "Finnhub rate limit reached; retry later", updatedAt: now - 30_000 }, now + 1)).toBe(true);
+  });
+
+  it("searches the full provider directory without exposing quote values", () => {
+    const symbols = [{ symbol: "AAPL", description: "Apple Inc." }, { symbol: "AMD", description: "Advanced Micro Devices" }, { symbol: "MSFT", description: "Microsoft Corporation" }];
+    expect(filterDirectorySymbols(symbols, "micro")).toEqual([symbols[1], symbols[2]]);
+    expect(filterDirectorySymbols(symbols, "", 2)).toHaveLength(2);
+  });
+
+  it("keeps a selected directory ticker inside the ten-symbol quote cap", () => {
+    const requested = getQuoteRequestSymbols("ZZZZ");
+    expect(requested).toHaveLength(10);
+    expect(requested).toContain("ZZZZ");
   });
 
   it("requests exactly ten provider symbols", () => {
