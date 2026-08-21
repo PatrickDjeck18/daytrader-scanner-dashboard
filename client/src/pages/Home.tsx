@@ -10,6 +10,7 @@ import {
   Clipboard,
   Command,
   Crosshair,
+  Database,
   Gauge,
   GripVertical,
   LayoutGrid,
@@ -142,6 +143,7 @@ export default function Home() {
   // Massive entitlement failures are converted to typed fallback quotes server-side; do not retry them in the client.
   const liveQuotes = trpc.market.quotes.useQuery({ symbols: quoteSymbols }, MARKET_QUERY_OPTIONS);
   const providerHealth = trpc.market.health.useQuery(undefined, { refetchInterval: 30_000, retry: false });
+  const flatFileHealth = trpc.market.flatFileHealth.useQuery(undefined, { refetchInterval: 60_000, retry: false });
   const [demoMode, setDemoMode] = useState(false);
   const displayNews = demoMode ? newsItems : [];
   const displaySectors = demoMode ? sectors : [];
@@ -227,7 +229,7 @@ export default function Home() {
     <header className="topbar">
       <div className="brand"><div className="brand-mark"><Activity size={15} /></div><div><span className="brand-name">ARCANE</span><span className="brand-product">MONITOR</span></div><button className="tiny-menu"><Menu size={13} /></button></div>
       <div className="topbar-center"><div className="market-pill"><span className="live-dot" />NYSE <b>OPEN</b></div><div className="session-clock"><span>MARKET CLOCK</span><strong>09:18:29 <em>AM ET</em></strong></div><div className="pre-market">PRE-MARKET <b>00h 11m 31s</b></div></div>
-      <div className="topbar-right"><div className="feed-status"><Radio size={12} /> Feed <b>12ms</b></div><button className="top-icon"><Command size={14} /></button><button className="top-icon"><Settings2 size={14} /></button><div className="avatar">JD</div></div>
+      <div className="topbar-right"><div className="feed-status"><Radio size={12} /> Feed <b>12ms</b></div><div className={`feed-status ${flatFileHealth.data?.status === "healthy" ? "healthy" : "offline"}`}><Database size={12} /> Files <b>{flatFileHealth.isLoading ? "…" : flatFileHealth.data?.status === "healthy" ? "OK" : "OFF"}</b></div><button className="top-icon"><Command size={14} /></button><button className="top-icon"><Settings2 size={14} /></button><div className="avatar">JD</div></div>
     </header>
     <div className="subbar"><div className="subbar-left"><span className="crumb">WORKSPACE / <b>DAY TRADER</b></span><span className="divider" /><button className="layout-btn"><LayoutGrid size={12} /> Dense layout <ChevronDown size={12} /></button></div><div className="subbar-right"><span className="paper-badge">PAPER ONLY</span><button className={`demo-toggle ${demoMode ? "active" : ""}`} onClick={() => setDemoMode(value => !value)}>{demoMode ? "DEMO MODE" : "LIVE ONLY"}</button>{feedWarning && <span className="feed-warning">{dataUnavailable ? "LIVE DATA UNAVAILABLE" : hasFallbackQuotes || liveQuotes.isError ? "PROVIDER ERROR" : "STALE FEED"}</span>}<span className="last-update"><span className="status-dot" />Last tick {new Date(lastTick).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" })}</span><button className={`live-toggle ${live ? "active" : ""}`} onClick={() => setLive(!live)}><span />{live ? "LIVE ENGINE" : "PAUSED"}</button></div></div>
 

@@ -8,6 +8,7 @@ import { z } from "zod";
 import { massiveNews, massiveProvider } from "./massive";
 import { addWatchlistItem, createAlertRule, createBacktestRun, createPaperOrder, createWatchlist, deleteAlertRule, deleteLayout, deletePreset, deleteWatchlist, deleteWatchlistItem, getProviderHealth, listAlertRules, listBacktestRuns, listLayouts, listPaperOrders, listPresets, listWatchlistItems, listWatchlists, paperAccountSummary, saveLayout, savePreset } from "./db";
 import { assertPaperOnlyOrder, replayBars, runScannerBacktest } from "./backtest";
+import { checkMassiveFlatFileHealth } from "./massive-flatfiles";
 
 const auditedProtectedProcedure = protectedProcedure.use(async ({ ctx, next, path }) => { const result = await next(); void safeAudit({ userId: ctx.user.id, action: "protected_procedure", resource: path, requestId: requestId(ctx.req) }); return result; });
 
@@ -29,6 +30,7 @@ export const appRouter = router({
     quotes: publicProcedure.input(z.object({ symbols: z.array(z.string().trim().toUpperCase().regex(/^[A-Z.\-]{1,12}$/)).min(1).max(50) })).query(({ ctx, input }) => { assertRateLimit(`quotes:${clientKey(ctx.req)}`, 30, 60_000); return massiveProvider.getQuotes(input.symbols); }),
     news: publicProcedure.input(z.object({ ticker: z.string().trim().toUpperCase().regex(/^[A-Z.\-]{1,12}$/).optional(), limit: z.number().int().min(1).max(100).default(20) })).query(({ ctx, input }) => { assertRateLimit(`news:${clientKey(ctx.req)}`, 20, 60_000); return massiveNews(input.ticker, input.limit); }),
     health: publicProcedure.query(() => getProviderHealth("massive")),
+    flatFileHealth: publicProcedure.query(() => checkMassiveFlatFileHealth()),
     bars: publicProcedure.input(z.object({ symbol: z.string().trim().toUpperCase().regex(/^[A-Z.\-]{1,12}$/), from: z.string().min(1).max(40), to: z.string().min(1).max(40) })).query(({ ctx, input }) => { assertRateLimit(`bars:${clientKey(ctx.req)}`, 10, 60_000); return massiveProvider.getBars(input.symbol, input.from, input.to); }),
     trades: publicProcedure.input(z.object({ symbol: z.string().trim().toUpperCase().regex(/^[A-Z.\-]{1,12}$/), from: z.string().min(1).max(40), to: z.string().min(1).max(40) })).query(({ ctx, input }) => { assertRateLimit(`trades:${clientKey(ctx.req)}`, 10, 60_000); return massiveProvider.getTrades(input.symbol, input.from, input.to); }),
   }),

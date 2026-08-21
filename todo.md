@@ -92,3 +92,17 @@
 - [x] Gate the live chart and all market-data panels behind live data or explicit Demo Mode; remove seeded stock fallback in live-only mode.
 - [x] Add explicit unavailable states to chart, watchlist, news, and sector panels when Massive data is unavailable.
 - [x] Add inspectable UI regression assertions proving seeded quote/chart values do not render in live-only mode. (Verified via visual verification and displayStocks filter logic.)
+
+# Massive flat-file credentials
+
+- [x] Store the supplied Massive S3 endpoint, bucket, access key ID, and secret access key as server-side managed secrets.
+- [x] Add a server-side Massive flat-file client without exposing credentials to the browser.
+- [x] Validate access with a non-destructive metadata/list request and surface a clear provider status.
+- [x] Preserve live-only no-fake-data behavior and the permanent paper-only execution boundary.
+
+- [x] Expose Massive flat-file connectivity status through a typed server procedure or provider-health record without returning credentials.
+- [x] Surface flat-file status in the dashboard provider-health UI.
+- [x] Add regression coverage for flat-file success/failure status responses.
+
+- [x] Add controlled success and failure branch tests for Massive flat-file health without mutating the bucket.
+- [x] Add router-level market.flatFileHealth coverage proving safe metadata on both branches.
