@@ -1,6 +1,7 @@
 import type { CreateExpressContextOptions } from "@trpc/server/adapters/express";
 import type { User } from "../../drizzle/schema";
 import { sdk } from "./sdk";
+import { randomUUID } from "node:crypto";
 
 export type TrpcContext = {
   req: CreateExpressContextOptions["req"];
@@ -20,6 +21,8 @@ export async function createContext(
     user = null;
   }
 
+  const requestId = typeof opts.req.headers["x-request-id"] === "string" && opts.req.headers["x-request-id"].length <= 80 ? opts.req.headers["x-request-id"] : randomUUID();
+  opts.res.setHeader("x-request-id", requestId);
   return {
     req: opts.req,
     res: opts.res,

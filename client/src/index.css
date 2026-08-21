@@ -35,3 +35,5 @@ button:focus-visible, input:focus-visible { outline: 2px solid #8b7cff; outline-
 .paper-badge { color: #f5c85a; background: #2b2415; border: 1px solid #5b4720; border-radius: 4px; padding: 4px 7px; font-size: 8px; font-weight: 700; letter-spacing: .1em; }
 .live-dot.offline { background: #f08b75; box-shadow: 0 0 9px rgba(240, 139, 117, .75); }
 @media (max-width: 760px) { .paper-badge { display: none; } }
+
+.feed-warning { color: #ffcb68; background: #302516; border: 1px solid #6c4d1f; border-radius: 4px; padding: 4px 7px; font-size: 8px; font-weight: 700; letter-spacing: .08em; }

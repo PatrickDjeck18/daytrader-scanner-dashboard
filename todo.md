@@ -69,3 +69,13 @@
 - [x] Add regression coverage for rejected fetches and verify the dashboard query path remains stable.
 
 - [x] Add a router-level test proving a rejected Massive fetch resolves fallback quotes through market.quotes without throwing.
+
+# Production hardening
+
+- [x] Enforce a permanent paper-only execution boundary with no live broker credentials, live routes, or live order mutations.
+- [x] Add authenticated authorization checks, input validation, rate limits, audit logging, and safe error responses.
+- [x] Add market-data freshness tracking, stale-data warnings, reconnect/backoff handling, and provider health telemetry.
+- [x] Harden persistence with ownership checks, migrations/index review, idempotency, and failure handling.
+- [x] Harden paper accounting, fill simulation, P&L, replay, and backtesting with costs, slippage, and reproducibility metadata.
+- [x] Add production UI safety states, clear simulated/stale data warnings, and operational health indicators.
+- [x] Add production validation, regression tests, security checks, visual verification, and deployment documentation. Security checks include unauthorized workspace rejection and safe paper-order validation coverage.

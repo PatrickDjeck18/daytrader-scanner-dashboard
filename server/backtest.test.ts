@@ -20,6 +20,15 @@ describe("replay and backtesting", () => {
     expect(result.finalEquity).toBeGreaterThan(1000);
   });
 
+  it("includes configured slippage and fees in the result metadata", () => {
+    const orderedBars = replayBars(bars).map(({ replayIndex: _replayIndex, delayMs: _delayMs, ...bar }) => bar);
+    const result = runScannerBacktest(orderedBars, { minChangePct: 5, minRvol: 1.5, initialCapital: 1000, positionSize: 500, slippageBps: 25, feePerTrade: 2 });
+    expect(result.slippageBps).toBe(25);
+    expect(result.feePerTrade).toBe(2);
+    expect(result.dataStart).toBe(1);
+    expect(result.dataEnd).toBe(3);
+  });
+
   it("rejects live execution", () => {
     expect(assertPaperOnlyOrder("paper")).toBe(true);
     expect(() => assertPaperOnlyOrder("live")).toThrow(/disabled/);
