@@ -51,3 +51,6 @@ button:focus-visible, input:focus-visible { outline: 2px solid #8b7cff; outline-
 .personal-use-badge { border: 1px solid rgba(121, 168, 255, .35); color: #9bb9ff; background: rgba(74, 113, 190, .12); padding: 4px 8px; border-radius: 4px; font-size: 9px; letter-spacing: .08em; font-weight: 700; white-space: nowrap; }
 
 .filter-note { padding: 7px 13px; border-bottom: 1px solid #403b24; background: rgba(219, 174, 70, .07); color: #cdbb85; font-size: 9px; line-height: 1.45; }
+
+.show-more-btn { margin-left: 8px; border: 1px solid rgba(123, 145, 210, .4); border-radius: 3px; padding: 3px 7px; color: #9eb4ee; background: rgba(92, 111, 185, .12); font-size: 9px; font-weight: 700; letter-spacing: .04em; cursor: pointer; }
+.show-more-btn:hover { background: rgba(92, 111, 185, .24); color: #d8e2ff; }

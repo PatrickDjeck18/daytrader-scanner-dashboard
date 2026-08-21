@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { getFreePlanUiState, getNewsItemKey, getProviderAwareScannerRows, getScannerDataNotice, isProviderAwareScannerEligible, shouldApplyOptionalScannerFilters } from "./Home";
+import { getFreePlanUiState, getNewsItemKey, getProviderAwareScannerRows, getScannerDataNotice, getVisibleScannerRows, isProviderAwareScannerEligible, providerQuoteToStock, shouldApplyOptionalScannerFilters } from "./Home";
 
 describe("free-plan dashboard state", () => {
   it("shows the entitlement banner when live snapshots are unavailable", () => {
@@ -27,5 +27,15 @@ describe("free-plan dashboard state", () => {
     expect(getProviderAwareScannerRows([row], "Relative Volume Leaders", thresholds, "finnhub")).toHaveLength(1);
     expect(getScannerDataNotice("Relative Volume Leaders", "finnhub")).toContain("RVOL UNAVAILABLE");
     expect(getScannerDataNotice("Top Gainers", "finnhub")).toBeUndefined();
+  });
+
+  it("shows more than seven rows and supports showing all eligible rows", () => {
+    const rows = Array.from({ length: 20 }, (_, index) => index);
+    expect(getVisibleScannerRows(rows, false)).toHaveLength(12);
+    expect(getVisibleScannerRows(rows, true)).toHaveLength(20);
+    const providerRow = providerQuoteToStock({ symbol: "AAPL", price: 200, changePct: 3.2, volume: 1200000, vwap: 199, sessionHigh: 202, sessionLow: 196, bid: 199.99, ask: 200.01, source: "finnhub", lastUpdated: Date.now() }, 0);
+    expect(providerRow.price).toBe(200);
+    expect(providerRow.float).toBe("—");
+    expect(providerRow.rvol).toBe(0);
   });
 });

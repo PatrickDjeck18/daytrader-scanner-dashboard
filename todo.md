@@ -200,3 +200,16 @@
 
 - [x] Capture inspectable evidence that the running Finnhub scanner panel shows a nonzero symbol count after the final scanner-mode changes.
 - [x] Save a final checkpoint containing that evidence and the fully completed task list.
+
+# Expanded scanner symbol display
+
+- [x] Increase the scanner table’s visible rows beyond the current seven-symbol slice.
+- [x] Add a clear show-more/show-less control with accurate eligible-symbol counts.
+- [x] Add regression coverage for expanded scanner results and preserve provider-aware/no-fake-data behavior.
+- [x] Visually verify the expanded table and save a checkpoint.
+
+# Expanded provider-backed symbol universe
+
+- [x] Expand the real Finnhub quote universe beyond the original eight seed symbols.
+- [x] Create quote-only rows from provider responses with unknown optional metadata, never fabricated prices or fundamentals.
+- [x] Add regression coverage proving provider-backed rows make the expanded scanner control reachable.
