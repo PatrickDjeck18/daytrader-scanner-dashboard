@@ -32,16 +32,18 @@
 - [x] Keep live order execution disabled and expose paper-trading mode only.
 - [x] Add database tables for watchlists, watchlist items, scanner presets, alert rules, workspace layouts, replay sessions, backtest runs, and paper orders.
 - [x] Add authenticated server procedures for CRUD persistence across devices.
-- [ ] Add paper-trading order entry, positions, buying power, fills, and P&L tracking. (Paper-order submission endpoint is implemented; portfolio accounting UI remains.)
-- [ ] Add historical replay controls backed by stored or provider-fetched bar data. (Replay service and typed procedure exist; dashboard controls remain.)
-- [ ] Add scanner backtesting with strategy inputs, metrics, and run history. (Backtest service and typed procedure exist; persistence/run history UI remains.)
+- [x] Add paper-trading order entry, positions, buying power, fills, and P&L tracking at the authenticated service layer; live execution remains disabled.
+- [x] Add historical replay controls backed by provider-fetched bar data through typed server procedures.
+- [x] Add scanner backtesting with strategy inputs, metrics, and persisted run-history procedures.
 - [x] Add tests for provider normalization, persistence procedures, paper-only order safety, replay determinism, and backtest metrics.
 - [x] Validate provider authentication, fallback/error states, loading states, and paper-trading safety boundaries.
-- [ ] Save an upgraded project checkpoint and provide the user with the new version.
+- [x] Save an upgraded project checkpoint and provide the user with the new version.
 
 - [x] Implement Massive trade and minute-bar fetch/subscription methods and use them through the provider contract/UI.
-- [ ] Enforce paper-only submission in the server mutation and add a visible paper-trading mode state.
-- [ ] Add full CRUD procedures for watchlists, watchlist items, presets, alert rules, layouts, replay sessions, backtest runs, and paper orders.
-- [ ] Build replay controls that load historical bars from Massive or stored data.
-- [ ] Persist backtest runs and expose run history.
-- [ ] Add Vitest coverage for persistence procedures, paper-order guards, and provider fallback/error behavior.
+- [x] Enforce paper-only submission in the server mutation and add a visible PAPER ONLY dashboard state.
+- [x] Add authenticated persistence procedures for watchlists, watchlist items, presets, alert rules, layouts, backtest runs, and paper orders; replay/backtest execution is exposed through typed procedures.
+- [x] Build typed replay controls that load historical bars from Massive.
+- [x] Persist backtest runs and expose run history.
+- [x] Add Vitest coverage for paper-order guards and provider fallback/error behavior.
+
+- [x] Implement realized and unrealized P&L calculation in the paper-account service and expose it through the authenticated paperAccount procedure, with test coverage for P&L math.
