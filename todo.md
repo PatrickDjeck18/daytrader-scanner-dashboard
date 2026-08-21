@@ -158,3 +158,11 @@
 - [x] Implement true Finnhub-to-Massive fallback for provider failures while preserving no-fake-data behavior.
 - [x] Add Finnhub quote, bars, and news failure-path regression tests.
 - [x] Save a post-Finnhub checkpoint after final validation.
+
+# Duplicate catalyst-feed key fix
+
+- [x] Replace the non-unique catalyst-feed React key with a stable unique key derived from item identity and position.
+- [x] Add regression coverage for duplicate catalyst items rendering without duplicate keys.
+- [x] Run TypeScript/Vitest and visually verify browserConsole has no duplicate-key warning.
+
+- [x] Fix the Finnhub-to-Massive quote merge so missing fallback entries never produce undefined quote objects in the client.
