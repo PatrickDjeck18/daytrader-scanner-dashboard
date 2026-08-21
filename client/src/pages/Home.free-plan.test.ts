@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { getFreePlanUiState, getNewsItemKey, getProviderAwareScannerRows, getScannerDataNotice, getVisibleScannerRows, isProviderAwareScannerEligible, providerQuoteToStock, quoteUniverse, shouldApplyOptionalScannerFilters } from "./Home";
+import { getFreePlanUiState, getNewsItemKey, getProviderAwareScannerRows, getScannerDataNotice, getVisibleScannerRows, isFreshProviderRateLimit, isProviderAwareScannerEligible, providerQuoteToStock, quoteUniverse, shouldApplyOptionalScannerFilters } from "./Home";
 
 describe("free-plan dashboard state", () => {
   it("shows the entitlement banner when live snapshots are unavailable", () => {
@@ -27,6 +27,13 @@ describe("free-plan dashboard state", () => {
     expect(getProviderAwareScannerRows([row], "Relative Volume Leaders", thresholds, "finnhub")).toHaveLength(1);
     expect(getScannerDataNotice("Relative Volume Leaders", "finnhub")).toContain("RVOL UNAVAILABLE");
     expect(getScannerDataNotice("Top Gainers", "finnhub")).toBeUndefined();
+  });
+
+  it("expires stale provider rate-limit state", () => {
+    const now = Date.parse("2026-08-21T18:00:00.000Z");
+    expect(isFreshProviderRateLimit({ lastError: "Finnhub rate limit reached; retry later", updatedAt: now - 30_000 }, now)).toBe(true);
+    expect(isFreshProviderRateLimit({ lastError: "Finnhub rate limit reached; retry later", updatedAt: now - 120_000 }, now)).toBe(false);
+    expect(isFreshProviderRateLimit({ lastError: "Finnhub rate limit reached; retry later", updatedAt: now - 30_000 }, now + 1)).toBe(true);
   });
 
   it("requests exactly ten provider symbols", () => {

@@ -226,3 +226,10 @@
 - [x] Cap the active Finnhub quote request universe at exactly 10 symbols.
 - [x] Preserve provider-backed row creation, no-fake-data behavior, and scanner counts under the cap.
 - [x] Add regression coverage, run validation, visually verify the cap, and save a checkpoint.
+
+# Persistent Finnhub rate-limit warning
+
+- [x] Determine whether the displayed Finnhub 429 state is still active or stale after server restart.
+- [x] Fix cooldown expiry, health refresh, or UI messaging if the warning persists after the provider window resets.
+- [x] Add regression coverage for cooldown expiry and rate-limit state refresh.
+- [x] Run validation, visually verify the corrected state, and save a checkpoint.
