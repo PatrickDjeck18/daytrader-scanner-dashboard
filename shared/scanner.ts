@@ -19,9 +19,13 @@ export type MarketQuote = {
   lastUpdated: number;
 };
 
+export type MarketTrade = { symbol: string; price: number; size: number; timestamp: number };
+export type MarketBar = { symbol: string; open: number; close: number; high: number; low: number; volume: number; vwap: number; start: number; end: number };
 export type MarketDataProvider = {
   getQuotes: (symbols: string[]) => Promise<MarketQuote[]>;
-  subscribe: (symbols: string[], onQuote: (quote: MarketQuote) => void) => () => void;
+  getTrades: (symbol: string, from: string, to: string) => Promise<MarketTrade[]>;
+  getBars: (symbol: string, from: string, to: string) => Promise<MarketBar[]>;
+  subscribe: (symbols: string[], onQuote: (quote: MarketQuote) => void, onTrade?: (trade: MarketTrade) => void, onBar?: (bar: MarketBar) => void) => () => void;
 };
 
 export type ScannerThresholds = {

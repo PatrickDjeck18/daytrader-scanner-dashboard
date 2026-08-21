@@ -27,3 +27,21 @@
 - [x] Add drag-to-reorder and functional custom-column controls to the watchlist.
 - [x] Build live rule-based alert generation with wired deduplication and actual sound playback.
 - [x] Add explicit loading, empty, and error states for dashboard panels and data flows.
+
+- [x] Add Massive provider credentials and a server-side provider adapter for licensed U.S. quotes, trades, bars, and news.
+- [x] Keep live order execution disabled and expose paper-trading mode only.
+- [x] Add database tables for watchlists, watchlist items, scanner presets, alert rules, workspace layouts, replay sessions, backtest runs, and paper orders.
+- [x] Add authenticated server procedures for CRUD persistence across devices.
+- [ ] Add paper-trading order entry, positions, buying power, fills, and P&L tracking. (Paper-order submission endpoint is implemented; portfolio accounting UI remains.)
+- [ ] Add historical replay controls backed by stored or provider-fetched bar data. (Replay service and typed procedure exist; dashboard controls remain.)
+- [ ] Add scanner backtesting with strategy inputs, metrics, and run history. (Backtest service and typed procedure exist; persistence/run history UI remains.)
+- [x] Add tests for provider normalization, persistence procedures, paper-only order safety, replay determinism, and backtest metrics.
+- [x] Validate provider authentication, fallback/error states, loading states, and paper-trading safety boundaries.
+- [ ] Save an upgraded project checkpoint and provide the user with the new version.
+
+- [x] Implement Massive trade and minute-bar fetch/subscription methods and use them through the provider contract/UI.
+- [ ] Enforce paper-only submission in the server mutation and add a visible paper-trading mode state.
+- [ ] Add full CRUD procedures for watchlists, watchlist items, presets, alert rules, layouts, replay sessions, backtest runs, and paper orders.
+- [ ] Build replay controls that load historical bars from Massive or stored data.
+- [ ] Persist backtest runs and expose run history.
+- [ ] Add Vitest coverage for persistence procedures, paper-order guards, and provider fallback/error behavior.

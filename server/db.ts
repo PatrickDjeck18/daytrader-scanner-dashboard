@@ -1,6 +1,6 @@
 import { eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
-import { InsertUser, users } from "../drizzle/schema";
+import { InsertUser, users, watchlists, watchlistItems, scannerPresets, alertRules, workspaceLayouts, paperOrders } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
 let _db: ReturnType<typeof drizzle> | null = null;
@@ -88,5 +88,15 @@ export async function getUserByOpenId(openId: string) {
 
   return result.length > 0 ? result[0] : undefined;
 }
+
+export async function listWatchlists(userId: number) { const db = await getDb(); if (!db) return []; return db.select().from(watchlists).where(eq(watchlists.userId, userId)); }
+export async function createWatchlist(userId: number, name: string, columns: string[]) { const db = await getDb(); if (!db) throw new Error("Database unavailable"); await db.insert(watchlists).values({ userId, name, columns: JSON.stringify(columns) }); return true; }
+export async function listPresets(userId: number) { const db = await getDb(); if (!db) return []; return db.select().from(scannerPresets).where(eq(scannerPresets.userId, userId)); }
+export async function savePreset(userId: number, name: string, scanner: string, thresholds: unknown) { const db = await getDb(); if (!db) throw new Error("Database unavailable"); await db.insert(scannerPresets).values({ userId, name, scanner, thresholds: JSON.stringify(thresholds) }); return true; }
+export async function listLayouts(userId: number) { const db = await getDb(); if (!db) return []; return db.select().from(workspaceLayouts).where(eq(workspaceLayouts.userId, userId)); }
+export async function saveLayout(userId: number, name: string, layout: unknown) { const db = await getDb(); if (!db) throw new Error("Database unavailable"); await db.insert(workspaceLayouts).values({ userId, name, layout: JSON.stringify(layout) }); return true; }
+export async function listAlertRules(userId: number) { const db = await getDb(); if (!db) return []; return db.select().from(alertRules).where(eq(alertRules.userId, userId)); }
+export async function createAlertRule(userId: number, name: string, symbol: string | undefined, condition: unknown) { const db = await getDb(); if (!db) throw new Error("Database unavailable"); await db.insert(alertRules).values({ userId, name, symbol, condition: JSON.stringify(condition) }); return true; }
+export async function createPaperOrder(userId: number, input: { symbol: string; side: "buy" | "sell"; quantity: string; orderType: "market" | "limit"; limitPrice?: string }) { const db = await getDb(); if (!db) throw new Error("Database unavailable"); await db.insert(paperOrders).values({ userId, symbol: input.symbol, side: input.side, quantity: input.quantity, orderType: input.orderType, limitPrice: input.limitPrice, status: "submitted" }); return true; }
 
 // TODO: add feature queries here as your schema grows.

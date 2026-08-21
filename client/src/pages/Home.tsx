@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { trpc } from "@/lib/trpc";
 import {
   Activity,
   Bell,
@@ -136,6 +137,8 @@ function Panel({ title, subtitle, children, className = "", action }: { title: s
 
 export default function Home() {
   const [stocks, setStocks] = useState(seedStocks);
+  const quoteSymbols = useMemo(() => seedStocks.map(item => item.symbol), []);
+  const liveQuotes = trpc.market.quotes.useQuery({ symbols: quoteSymbols }, { refetchInterval: 15000, retry: 1 });
   const [selected, setSelected] = useState("SMCI");
   const [scanner, setScanner] = useState("Top Gainers");
   const [preset, setPreset] = useState("Low-Float Gappers");
@@ -162,6 +165,7 @@ export default function Home() {
   const alertKeys = useRef(new Set<string>());
   const stock = stocks.find(s => s.symbol === selected) ?? stocks[1];
   useEffect(() => { localStorage.setItem("arcane-presets", JSON.stringify(customPresets)); const timer = window.setTimeout(() => setLoading(false), 450); return () => window.clearTimeout(timer); }, [customPresets]);
+  useEffect(() => { if (!liveQuotes.data?.length) return; setStocks(current => current.map(seed => { const quote = liveQuotes.data.find(item => item.symbol === seed.symbol); return quote ? { ...seed, price: quote.price || seed.price, change: quote.changePct || seed.change, volume: quote.volume ? quote.volume / 1000000 : seed.volume, vwap: quote.vwap || seed.vwap, high: quote.sessionHigh || seed.high, low: quote.sessionLow || seed.low, spread: Math.max(.01, quote.ask - quote.bid) } : seed; })); }, [liveQuotes.data]);
   const scannerRows = useMemo(() => {
     const minPrice = Number(thresholds.minPrice) || 0, minFloat = Number(thresholds.minFloat) || 0, maxFloat = Number(thresholds.maxFloat) || Infinity, minCap = Number(thresholds.minMarketCap) || 0, maxCap = Number(thresholds.maxMarketCap) || Infinity, minDollar = Number(thresholds.minDollarVolume) || 0, minChange = Number(thresholds.minChange) || 0, minRvol = Number(thresholds.minRvol) || 0, maxSpread = Number(thresholds.maxSpread) || Infinity;
     const eligible = stocks.filter(s => s.price >= minPrice && s.floatM >= minFloat && s.floatM <= maxFloat && Number(s.marketCap.replace(/[$TB]/g, "")) * (s.marketCap.includes("T") ? 1000000 : s.marketCap.includes("B") ? 1000 : 1) >= minCap && Number(s.volume) * s.price >= minDollar && s.change >= minChange && s.rvol >= minRvol && s.spread <= maxSpread);
@@ -221,7 +225,7 @@ export default function Home() {
         <div className="scanner-list">{scannerNames.map((name, i) => <button key={name} onClick={() => setScanner(name)} className={`scanner-item ${scanner === name ? "active" : ""}`}><span className={`scanner-icon c${i}`}><Zap size={12} /></span><span>{name}</span><strong>{["48", "12", "31", "18", "22", "14", "9", "3", "27", "5"][i]}</strong></button>)}</div>
         <div className="rail-label preset-label">PRESETS <button className="icon-btn"><Plus size={13} /></button></div>
         <div className="preset-list">{availablePresets.map((p, i) => <button key={p} className={`preset ${preset === p ? "active" : ""}`} onClick={() => { setPreset(p); if (p === "Low-Float Gappers") setThresholds({ ...thresholds, maxFloat: "500", minChange: "5.00", minRvol: "3.00" }); if (p === "Large-Cap Momentum") setThresholds({ ...thresholds, minMarketCap: "10000", minDollarVolume: "25" }); if (p === "News Breakouts") setThresholds({ ...thresholds, minChange: "3.00", minRvol: "2.50", minDollarVolume: "5" }); }}><span className={`preset-dot d${i}`} />{p}<MoreHorizontal size={13} /></button>)}</div>
-        <div className="rail-footer"><div className="engine-card"><div className="engine-card-head"><span className="live-dot" />SIMULATED FEED <span className="engine-ms">12ms</span></div><div className="engine-progress"><span /></div><div className="engine-stats"><span><b>8,412</b> symbols</span><span><b>1.4k</b> ticks/s</span></div></div><div className="rail-links"><button><BookOpen size={13} /> Docs</button><button><Settings2 size={13} /> Settings</button></div></div>
+        <div className="rail-footer"><div className="engine-card"><div className="engine-card-head"><span className={`live-dot ${liveQuotes.isError ? "offline" : ""}`} />{liveQuotes.isError ? "SIMULATED FALLBACK" : liveQuotes.data ? "MASSIVE FEED" : "CONNECTING FEED"} <span className="engine-ms">{liveQuotes.isFetching ? "…" : "12ms"}</span></div><div className="engine-progress"><span /></div><div className="engine-stats"><span><b>8,412</b> symbols</span><span><b>1.4k</b> ticks/s</span></div></div><div className="rail-links"><button><BookOpen size={13} /> Docs</button><button><Settings2 size={13} /> Settings</button></div></div>
       </aside>
 
       <div className="main-column">

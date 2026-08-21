@@ -1,0 +1,57 @@
+import type { MarketBar, MarketDataProvider, MarketQuote, MarketTrade } from "../shared/scanner";
+
+export type MassiveQuoteEvent = { ev: "Q"; sym: string; bp?: number; ap?: number; bs?: number; as?: number; t?: number };
+export type MassiveTradeEvent = { ev: "T"; sym: string; p: number; s: number; t?: number; x?: number };
+export type MassiveMinuteEvent = { ev: "AM"; sym: string; o: number; c: number; h: number; l: number; v: number; a?: number; vw?: number; s: number; e: number };
+export type MassiveNewsItem = { id: string; title: string; article_url: string; published_utc: string; tickers?: string[]; publisher?: { name?: string }; description?: string };
+
+const baseUrl = "https://api.massive.com";
+const stocksSocket = "wss://socket.massive.com/stocks";
+
+function requireKey() { const key = process.env.MASSIVE_API_KEY; if (!key) throw new Error("MASSIVE_API_KEY is not configured"); return key; }
+
+export function normalizeQuote(event: MassiveQuoteEvent): MarketQuote {
+  const bid = event.bp ?? 0, ask = event.ap ?? bid, price = ask || bid;
+  return { symbol: event.sym, price, bid, ask, changePct: 0, volume: 0, rvol: 0, floatM: 0, marketCapM: 0, dollarVolumeM: 0, vwap: price, sessionHigh: price, sessionLow: price, halted: false, lastUpdated: event.t ?? Date.now() };
+}
+
+export function normalizeMinute(event: MassiveMinuteEvent): MarketBar { return { symbol: event.sym, open: event.o, close: event.c, high: event.h, low: event.l, volume: event.v, vwap: event.vw ?? event.a ?? event.c, start: event.s, end: event.e }; }
+export function normalizeTrade(event: MassiveTradeEvent): MarketTrade { return { symbol: event.sym, price: event.p, size: event.s, timestamp: event.t ?? Date.now() }; }
+
+export async function massiveNews(ticker?: string, limit = 50): Promise<MassiveNewsItem[]> {
+  const params = new URLSearchParams({ order: "desc", sort: "published_utc", limit: String(limit), apiKey: requireKey() });
+  if (ticker) params.set("ticker", ticker);
+  const response = await fetch(`${baseUrl}/v2/reference/news?${params}`);
+  if (!response.ok) throw new Error(`Massive news request failed: ${response.status}`);
+  const body = await response.json() as { results?: MassiveNewsItem[] };
+  return body.results ?? [];
+}
+
+export class MassiveMarketDataProvider implements MarketDataProvider {
+  async getQuotes(symbols: string[]) {
+    const key = requireKey();
+    const results = await Promise.all(symbols.map(async symbol => {
+      const response = await fetch(`${baseUrl}/v2/snapshot/locale/us/markets/stocks/tickers/${encodeURIComponent(symbol)}?apiKey=${encodeURIComponent(key)}`);
+      if (!response.ok) throw new Error(`Massive snapshot request failed for ${symbol}: ${response.status}`);
+      const body = await response.json() as { ticker?: { ticker?: string; lastTrade?: { p?: number; t?: number }; min?: { c?: number; v?: number; av?: number; vw?: number }; day?: { h?: number; l?: number; c?: number; v?: number }; todaysChangePerc?: number } };
+      const t = body.ticker;
+      const price = t?.lastTrade?.p ?? t?.day?.c ?? 0;
+      const volume = t?.day?.v ?? t?.min?.av ?? t?.min?.v ?? 0;
+      return { symbol: t?.ticker ?? symbol, price, bid: price, ask: price, changePct: t?.todaysChangePerc ?? 0, volume, rvol: 0, floatM: 0, marketCapM: 0, dollarVolumeM: (price * volume) / 1_000_000, vwap: t?.min?.vw ?? price, sessionHigh: t?.day?.h ?? price, sessionLow: t?.day?.l ?? price, halted: false, lastUpdated: t?.lastTrade?.t ?? Date.now() } satisfies MarketQuote;
+    }));
+    return results;
+  }
+
+  async getTrades(symbol: string, from: string, to: string): Promise<MarketTrade[]> { const key = requireKey(); const response = await fetch(`${baseUrl}/v3/trades/${encodeURIComponent(symbol)}?timestamp.gte=${encodeURIComponent(from)}&timestamp.lte=${encodeURIComponent(to)}&limit=1000&apiKey=${encodeURIComponent(key)}`); if (!response.ok) throw new Error(`Massive trades request failed for ${symbol}: ${response.status}`); const body = await response.json() as { results?: Array<{ participant_timestamp?: number; price: number; size: number }> }; return (body.results ?? []).map(item => normalizeTrade({ ev: "T", sym: symbol, p: item.price, s: item.size, t: item.participant_timestamp })); }
+
+  async getBars(symbol: string, from: string, to: string): Promise<MarketBar[]> { const key = requireKey(); const response = await fetch(`${baseUrl}/v2/aggs/ticker/${encodeURIComponent(symbol)}/range/1/minute/${encodeURIComponent(from)}/${encodeURIComponent(to)}?adjusted=true&sort=asc&limit=50000&apiKey=${encodeURIComponent(key)}`); if (!response.ok) throw new Error(`Massive bars request failed for ${symbol}: ${response.status}`); const body = await response.json() as { results?: Array<{ o: number; c: number; h: number; l: number; v: number; vw?: number; t: number }> }; return (body.results ?? []).map(item => normalizeMinute({ ev: "AM", sym: symbol, o: item.o, c: item.c, h: item.h, l: item.l, v: item.v, vw: item.vw, s: item.t, e: item.t + 59999 })); }
+
+  subscribe(symbols: string[], onQuote: (quote: MarketQuote) => void, onTrade?: (trade: MarketTrade) => void, onBar?: (bar: MarketBar) => void) {
+    const socket = new WebSocket(stocksSocket);
+    socket.addEventListener("open", () => { socket.send(JSON.stringify({ action: "auth", params: requireKey() })); socket.send(JSON.stringify({ action: "subscribe", params: symbols.flatMap(symbol => [`Q.${symbol}`, `T.${symbol}`, `AM.${symbol}`]).join(",") })); });
+    socket.addEventListener("message", message => { const payload = JSON.parse(String(message.data)) as (MassiveQuoteEvent | MassiveTradeEvent | MassiveMinuteEvent) | (MassiveQuoteEvent | MassiveTradeEvent | MassiveMinuteEvent)[]; for (const event of Array.isArray(payload) ? payload : [payload]) if (event.ev === "Q") onQuote(normalizeQuote(event)); else if (event.ev === "T") onTrade?.(normalizeTrade(event as MassiveTradeEvent)); else if (event.ev === "AM") onBar?.(normalizeMinute(event as MassiveMinuteEvent)); });
+    return () => socket.close();
+  }
+}
+
+export const massiveProvider = new MassiveMarketDataProvider();
