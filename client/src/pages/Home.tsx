@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { trpc } from "@/lib/trpc";
+import { MARKET_QUERY_OPTIONS } from "@shared/marketQuery";
 import {
   Activity,
   Bell,
@@ -138,7 +139,8 @@ function Panel({ title, subtitle, children, className = "", action }: { title: s
 export default function Home() {
   const [stocks, setStocks] = useState(seedStocks);
   const quoteSymbols = useMemo(() => seedStocks.map(item => item.symbol), []);
-  const liveQuotes = trpc.market.quotes.useQuery({ symbols: quoteSymbols }, { refetchInterval: 15000, retry: 1 });
+  // Massive entitlement failures are converted to typed fallback quotes server-side; do not retry them in the client.
+  const liveQuotes = trpc.market.quotes.useQuery({ symbols: quoteSymbols }, MARKET_QUERY_OPTIONS);
   const [selected, setSelected] = useState("SMCI");
   const [scanner, setScanner] = useState("Top Gainers");
   const [preset, setPreset] = useState("Low-Float Gappers");
@@ -225,7 +227,7 @@ export default function Home() {
         <div className="scanner-list">{scannerNames.map((name, i) => <button key={name} onClick={() => setScanner(name)} className={`scanner-item ${scanner === name ? "active" : ""}`}><span className={`scanner-icon c${i}`}><Zap size={12} /></span><span>{name}</span><strong>{["48", "12", "31", "18", "22", "14", "9", "3", "27", "5"][i]}</strong></button>)}</div>
         <div className="rail-label preset-label">PRESETS <button className="icon-btn"><Plus size={13} /></button></div>
         <div className="preset-list">{availablePresets.map((p, i) => <button key={p} className={`preset ${preset === p ? "active" : ""}`} onClick={() => { setPreset(p); if (p === "Low-Float Gappers") setThresholds({ ...thresholds, maxFloat: "500", minChange: "5.00", minRvol: "3.00" }); if (p === "Large-Cap Momentum") setThresholds({ ...thresholds, minMarketCap: "10000", minDollarVolume: "25" }); if (p === "News Breakouts") setThresholds({ ...thresholds, minChange: "3.00", minRvol: "2.50", minDollarVolume: "5" }); }}><span className={`preset-dot d${i}`} />{p}<MoreHorizontal size={13} /></button>)}</div>
-        <div className="rail-footer"><div className="engine-card"><div className="engine-card-head"><span className={`live-dot ${liveQuotes.isError ? "offline" : ""}`} />{liveQuotes.isError ? "SIMULATED FALLBACK" : liveQuotes.data ? "MASSIVE FEED" : "CONNECTING FEED"} <span className="engine-ms">{liveQuotes.isFetching ? "…" : "12ms"}</span></div><div className="engine-progress"><span /></div><div className="engine-stats"><span><b>8,412</b> symbols</span><span><b>1.4k</b> ticks/s</span></div></div><div className="rail-links"><button><BookOpen size={13} /> Docs</button><button><Settings2 size={13} /> Settings</button></div></div>
+        <div className="rail-footer"><div className="engine-card"><div className="engine-card-head"><span className={`live-dot ${(liveQuotes.isError || liveQuotes.data?.some(q => q.source === "simulated")) ? "offline" : ""}`} />{liveQuotes.isError || liveQuotes.data?.some(q => q.source === "simulated") ? "SIMULATED FALLBACK" : liveQuotes.data ? "MASSIVE FEED" : "CONNECTING FEED"} <span className="engine-ms">{liveQuotes.isFetching ? "…" : "12ms"}</span></div><div className="engine-progress"><span /></div><div className="engine-stats"><span><b>8,412</b> symbols</span><span><b>1.4k</b> ticks/s</span></div></div><div className="rail-links"><button><BookOpen size={13} /> Docs</button><button><Settings2 size={13} /> Settings</button></div></div>
       </aside>
 
       <div className="main-column">

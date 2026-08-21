@@ -9,6 +9,7 @@ const baseUrl = "https://api.massive.com";
 const stocksSocket = "wss://socket.massive.com/stocks";
 
 function requireKey() { const key = process.env.MASSIVE_API_KEY; if (!key) throw new Error("MASSIVE_API_KEY is not configured"); return key; }
+function fallbackQuote(symbol: string, reason: string): MarketQuote { return { symbol, price: 0, bid: 0, ask: 0, changePct: 0, volume: 0, rvol: 0, floatM: 0, marketCapM: 0, dollarVolumeM: 0, vwap: 0, sessionHigh: 0, sessionLow: 0, halted: false, lastUpdated: Date.now(), source: "simulated", providerError: reason }; }
 
 export function normalizeQuote(event: MassiveQuoteEvent): MarketQuote {
   const bid = event.bp ?? 0, ask = event.ap ?? bid, price = ask || bid;
@@ -32,12 +33,12 @@ export class MassiveMarketDataProvider implements MarketDataProvider {
     const key = requireKey();
     const results = await Promise.all(symbols.map(async symbol => {
       const response = await fetch(`${baseUrl}/v2/snapshot/locale/us/markets/stocks/tickers/${encodeURIComponent(symbol)}?apiKey=${encodeURIComponent(key)}`);
-      if (!response.ok) throw new Error(`Massive snapshot request failed for ${symbol}: ${response.status}`);
+      if (!response.ok) { if (response.status === 401 || response.status === 403) return fallbackQuote(symbol, `Massive snapshot access denied (${response.status}); using simulated feed`); throw new Error(`Massive snapshot request failed for ${symbol}: ${response.status}`); }
       const body = await response.json() as { ticker?: { ticker?: string; lastTrade?: { p?: number; t?: number }; min?: { c?: number; v?: number; av?: number; vw?: number }; day?: { h?: number; l?: number; c?: number; v?: number }; todaysChangePerc?: number } };
       const t = body.ticker;
       const price = t?.lastTrade?.p ?? t?.day?.c ?? 0;
       const volume = t?.day?.v ?? t?.min?.av ?? t?.min?.v ?? 0;
-      return { symbol: t?.ticker ?? symbol, price, bid: price, ask: price, changePct: t?.todaysChangePerc ?? 0, volume, rvol: 0, floatM: 0, marketCapM: 0, dollarVolumeM: (price * volume) / 1_000_000, vwap: t?.min?.vw ?? price, sessionHigh: t?.day?.h ?? price, sessionLow: t?.day?.l ?? price, halted: false, lastUpdated: t?.lastTrade?.t ?? Date.now() } satisfies MarketQuote;
+      return { symbol: t?.ticker ?? symbol, price, bid: price, ask: price, changePct: t?.todaysChangePerc ?? 0, volume, rvol: 0, floatM: 0, marketCapM: 0, dollarVolumeM: (price * volume) / 1_000_000, vwap: t?.min?.vw ?? price, sessionHigh: t?.day?.h ?? price, sessionLow: t?.day?.l ?? price, halted: false, lastUpdated: t?.lastTrade?.t ?? Date.now(), source: "massive" } satisfies MarketQuote;
     }));
     return results;
   }

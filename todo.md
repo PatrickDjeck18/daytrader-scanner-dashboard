@@ -47,3 +47,19 @@
 - [x] Add Vitest coverage for paper-order guards and provider fallback/error behavior.
 
 - [x] Implement realized and unrealized P&L calculation in the paper-account service and expose it through the authenticated paperAccount procedure, with test coverage for P&L math.
+
+- [x] Fix repeated Massive 403 snapshot query errors by returning a typed fallback response instead of an uncaught tRPC error.
+- [x] Surface provider entitlement/authentication state clearly while retaining the simulated feed.
+- [x] Add regression tests for 401/403 snapshot fallback and verify the dashboard has no API query error loop.
+
+- [x] Add Vitest coverage for both 401 and 403 Massive snapshot responses returning typed simulated fallback quotes.
+- [x] Re-run browser dashboard verification after the fallback change and confirm no tRPC query error loop appears when Massive access is denied.
+
+- [x] Add inspectable runtime evidence that the dashboard query path receives fallback quotes without an uncaught tRPC rejection or retry loop under Massive 401/403 responses.
+
+- [x] Add router-level Vitest coverage for both 401 and 403 market.quotes fallback responses.
+- [x] Add an explicit no-retry-loop assertion for the client market query configuration.
+
+- [x] Factor market query options into a shared constant and assert retry is disabled in Vitest.
+
+- [x] Ensure Vitest discovers shared/marketQuery.test.ts and confirm the retry assertion executes and passes.

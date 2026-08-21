@@ -17,6 +17,8 @@ export type MarketQuote = {
   halted: boolean;
   catalystType?: string;
   lastUpdated: number;
+  source?: "massive" | "simulated";
+  providerError?: string;
 };
 
 export type MarketTrade = { symbol: string; price: number; size: number; timestamp: number };
