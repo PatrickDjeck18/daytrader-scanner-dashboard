@@ -37,3 +37,8 @@ button:focus-visible, input:focus-visible { outline: 2px solid #8b7cff; outline-
 @media (max-width: 760px) { .paper-badge { display: none; } }
 
 .feed-warning { color: #ffcb68; background: #302516; border: 1px solid #6c4d1f; border-radius: 4px; padding: 4px 7px; font-size: 8px; font-weight: 700; letter-spacing: .08em; }
+
+.demo-toggle { color: #8f96b3; background: transparent; border: 1px solid #30364f; border-radius: 4px; padding: 4px 7px; font-size: 8px; font-weight: 700; letter-spacing: .08em; cursor: pointer; }
+.demo-toggle.active { color: #ffd27a; border-color: #9b6a2d; background: #332819; }
+.unavailable-state { min-height: 130px; color: #ffca73; border: 1px dashed #674b27; background: rgba(62, 42, 16, .18); }
+.unavailable-state span { max-width: 330px; text-align: center; line-height: 1.5; }

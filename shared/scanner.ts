@@ -17,7 +17,7 @@ export type MarketQuote = {
   halted: boolean;
   catalystType?: string;
   lastUpdated: number;
-  source?: "massive" | "simulated";
+  source?: "massive" | "simulated" | "unavailable";
   providerError?: string;
 };
 

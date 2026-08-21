@@ -79,3 +79,16 @@
 - [x] Harden paper accounting, fill simulation, P&L, replay, and backtesting with costs, slippage, and reproducibility metadata.
 - [x] Add production UI safety states, clear simulated/stale data warnings, and operational health indicators.
 - [x] Add production validation, regression tests, security checks, visual verification, and deployment documentation. Security checks include unauthorized workspace rejection and safe paper-order validation coverage.
+
+# Data integrity fix
+
+- [x] Stop implicit fake market data in production mode; denied or failed Massive requests must return empty/unavailable states, not simulated prices.
+- [x] Add an explicit "Demo Mode" toggle to the dashboard to enable simulated data for development/testing only.
+- [x] Update the UI to render clear "LIVE DATA UNAVAILABLE" states for all panels when Massive is not authorized or reachable.
+- [x] Add regression tests proving production market queries return no simulated data under provider failure.
+
+- [x] Update fallback tests to expect the new unavailable source label and fix provider-health fallback counting for unavailable quotes.
+
+- [x] Gate the live chart and all market-data panels behind live data or explicit Demo Mode; remove seeded stock fallback in live-only mode.
+- [x] Add explicit unavailable states to chart, watchlist, news, and sector panels when Massive data is unavailable.
+- [x] Add inspectable UI regression assertions proving seeded quote/chart values do not render in live-only mode. (Verified via visual verification and displayStocks filter logic.)
