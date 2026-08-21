@@ -18,4 +18,11 @@ describe("market.quotes fallback query path", () => {
     expect(result.map(item => item.source)).toEqual(["simulated", "simulated"]);
     expect(result.every(item => item.providerError?.includes(String(status)))).toBe(true);
   });
+  it("resolves fallback quotes through the router when Massive fetch rejects", async () => {
+    process.env.MASSIVE_API_KEY = "test-key";
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new TypeError("fetch failed")));
+    const result = await appRouter.createCaller(context).market.quotes({ symbols: ["IONQ"] });
+    expect(result[0]?.source).toBe("simulated");
+    expect(result[0]?.providerError).toMatch(/fetch failed/);
+  });
 });

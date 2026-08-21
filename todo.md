@@ -63,3 +63,9 @@
 - [x] Factor market query options into a shared constant and assert retry is disabled in Vitest.
 
 - [x] Ensure Vitest discovers shared/marketQuery.test.ts and confirm the retry assertion executes and passes.
+
+- [x] Fix transient fetch-failed market query errors by converting provider/network failures into typed simulated fallback quotes.
+- [x] Preserve provider failure visibility in the dashboard status without surfacing uncaught tRPC query errors.
+- [x] Add regression coverage for rejected fetches and verify the dashboard query path remains stable.
+
+- [x] Add a router-level test proving a rejected Massive fetch resolves fallback quotes through market.quotes without throwing.
