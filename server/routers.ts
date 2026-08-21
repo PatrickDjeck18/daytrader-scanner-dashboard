@@ -6,9 +6,17 @@ import { TRPCError } from "@trpc/server";
 import { assertRateLimit, clientKey, requestId, safeAudit } from "./production";
 import { z } from "zod";
 import { massiveNews, massiveProvider } from "./massive";
+import { finnhubNews, finnhubProvider } from "./finnhub";
 import { addWatchlistItem, createAlertRule, createBacktestRun, createPaperOrder, createWatchlist, deleteAlertRule, deleteLayout, deletePreset, deleteWatchlist, deleteWatchlistItem, getProviderHealth, listAlertRules, listBacktestRuns, listLayouts, listPaperOrders, listPresets, listWatchlistItems, listWatchlists, paperAccountSummary, saveLayout, savePreset } from "./db";
 import { assertPaperOnlyOrder, replayBars, runScannerBacktest } from "./backtest";
 import { checkMassiveFlatFileHealth } from "./massive-flatfiles";
+
+const activeMarketProvider = process.env.FINNHUB_API_KEY ? finnhubProvider : massiveProvider;
+const activeProviderName = process.env.FINNHUB_API_KEY ? "finnhub" : "massive";
+
+async function marketQuotes(symbols: string[]) { if (!process.env.FINNHUB_API_KEY) return massiveProvider.getQuotes(symbols); const primary = await finnhubProvider.getQuotes(symbols); const missing = primary.filter(item => item.source === "unavailable").map(item => item.symbol); if (!missing.length) return primary; try { const fallback = await massiveProvider.getQuotes(missing); const bySymbol = new Map(fallback.map(item => [item.symbol, item])); return primary.map(item => bySymbol.get(item.symbol)?.source !== "unavailable" ? bySymbol.get(item.symbol)! : item); } catch { return primary; } }
+async function marketBars(symbol: string, from: string, to: string) { if (!process.env.FINNHUB_API_KEY) return massiveProvider.getBars(symbol, from, to); try { return await finnhubProvider.getBars(symbol, from, to); } catch { return massiveProvider.getBars(symbol, from, to); } }
+async function marketTrades(symbol: string, from: string, to: string) { if (!process.env.FINNHUB_API_KEY) return massiveProvider.getTrades(symbol, from, to); try { return await finnhubProvider.getTrades(symbol, from, to); } catch { return massiveProvider.getTrades(symbol, from, to); } }
 
 const auditedProtectedProcedure = protectedProcedure.use(async ({ ctx, next, path }) => { const result = await next(); void safeAudit({ userId: ctx.user.id, action: "protected_procedure", resource: path, requestId: requestId(ctx.req) }); return result; });
 
@@ -27,12 +35,12 @@ export const appRouter = router({
   }),
 
   market: router({
-    quotes: publicProcedure.input(z.object({ symbols: z.array(z.string().trim().toUpperCase().regex(/^[A-Z.\-]{1,12}$/)).min(1).max(50) })).query(({ ctx, input }) => { assertRateLimit(`quotes:${clientKey(ctx.req)}`, 30, 60_000); return massiveProvider.getQuotes(input.symbols); }),
-    news: publicProcedure.input(z.object({ ticker: z.string().trim().toUpperCase().regex(/^[A-Z.\-]{1,12}$/).optional(), limit: z.number().int().min(1).max(100).default(20) })).query(({ ctx, input }) => { assertRateLimit(`news:${clientKey(ctx.req)}`, 20, 60_000); return massiveNews(input.ticker, input.limit); }),
-    health: publicProcedure.query(() => getProviderHealth("massive")),
+    quotes: publicProcedure.input(z.object({ symbols: z.array(z.string().trim().toUpperCase().regex(/^[A-Z.\-]{1,12}$/)).min(1).max(50) })).query(({ ctx, input }) => { assertRateLimit(`quotes:${clientKey(ctx.req)}`, 30, 60_000); return marketQuotes(input.symbols); }),
+    news: publicProcedure.input(z.object({ ticker: z.string().trim().toUpperCase().regex(/^[A-Z.\-]{1,12}$/).optional(), limit: z.number().int().min(1).max(100).default(20) })).query(({ ctx, input }) => { assertRateLimit(`news:${clientKey(ctx.req)}`, 20, 60_000); if (process.env.FINNHUB_API_KEY && input.ticker) { const to = new Date().toISOString().slice(0, 10); const from = new Date(Date.now() - 7 * 86_400_000).toISOString().slice(0, 10); return finnhubNews(input.ticker, from, to).then(items => items.slice(0, input.limit)).catch(() => massiveNews(input.ticker, input.limit)); } return massiveNews(input.ticker, input.limit); }),
+    health: publicProcedure.query(() => getProviderHealth(activeProviderName)),
     flatFileHealth: publicProcedure.query(() => checkMassiveFlatFileHealth()),
-    bars: publicProcedure.input(z.object({ symbol: z.string().trim().toUpperCase().regex(/^[A-Z.\-]{1,12}$/), from: z.string().min(1).max(40), to: z.string().min(1).max(40) })).query(({ ctx, input }) => { assertRateLimit(`bars:${clientKey(ctx.req)}`, 10, 60_000); return massiveProvider.getBars(input.symbol, input.from, input.to); }),
-    trades: publicProcedure.input(z.object({ symbol: z.string().trim().toUpperCase().regex(/^[A-Z.\-]{1,12}$/), from: z.string().min(1).max(40), to: z.string().min(1).max(40) })).query(({ ctx, input }) => { assertRateLimit(`trades:${clientKey(ctx.req)}`, 10, 60_000); return massiveProvider.getTrades(input.symbol, input.from, input.to); }),
+    bars: publicProcedure.input(z.object({ symbol: z.string().trim().toUpperCase().regex(/^[A-Z.\-]{1,12}$/), from: z.string().min(1).max(40), to: z.string().min(1).max(40) })).query(({ ctx, input }) => { assertRateLimit(`bars:${clientKey(ctx.req)}`, 10, 60_000); return marketBars(input.symbol, input.from, input.to); }),
+    trades: publicProcedure.input(z.object({ symbol: z.string().trim().toUpperCase().regex(/^[A-Z.\-]{1,12}$/), from: z.string().min(1).max(40), to: z.string().min(1).max(40) })).query(({ ctx, input }) => { assertRateLimit(`trades:${clientKey(ctx.req)}`, 10, 60_000); return marketTrades(input.symbol, input.from, input.to); }),
   }),
 
   workspace: router({

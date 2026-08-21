@@ -141,3 +141,20 @@
 - [x] Surface allowed historical/end-of-day bars in the dashboard UI and label them as permitted non-live data.
 - [x] Add automated client regression coverage for the FREE PLAN / REAL-TIME UNAVAILABLE banner state.
 - [x] Add automated client regression coverage ensuring live-only free-plan mode does not permit seeded market values.
+
+# Finnhub optional provider integration
+
+- [x] Store and validate the user-supplied Finnhub API key as a server-only managed secret.
+- [x] Add a Finnhub adapter for supported U.S. quote, trade, historical-bar, and news capabilities.
+- [x] Add explicit provider routing and source labels without silently misrepresenting personal-use data.
+- [x] Preserve Massive fallback, no-fake-data behavior, rate limits, and paper-only execution.
+- [x] Add provider normalization, failure, and safety regression tests; run TypeScript and Vitest.
+- [x] Visually verify the Finnhub-connected dashboard and save a checkpoint.
+
+# Finnhub production-gap follow-up
+
+- [x] Implement Finnhub trade-history support or explicitly return a typed unsupported state without pretending trade history is available.
+- [x] Add a visible Finnhub personal-use data disclosure in the dashboard.
+- [x] Implement true Finnhub-to-Massive fallback for provider failures while preserving no-fake-data behavior.
+- [x] Add Finnhub quote, bars, and news failure-path regression tests.
+- [x] Save a post-Finnhub checkpoint after final validation.
