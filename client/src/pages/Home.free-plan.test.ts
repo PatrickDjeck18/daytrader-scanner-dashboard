@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { getFreePlanUiState, getNewsItemKey } from "./Home";
+import { getFreePlanUiState, getNewsItemKey, getProviderAwareScannerRows, getScannerDataNotice, isProviderAwareScannerEligible, shouldApplyOptionalScannerFilters } from "./Home";
 
 describe("free-plan dashboard state", () => {
   it("shows the entitlement banner when live snapshots are unavailable", () => {
@@ -14,5 +14,18 @@ describe("free-plan dashboard state", () => {
   it("generates unique keys for duplicate-time catalyst items", () => {
     const item = { time: "08:05 PM", symbol: "SMCI" };
     expect(getNewsItemKey(item, 0)).not.toBe(getNewsItemKey(item, 1));
+  });
+
+  it("does not apply optional zero-value metrics to Finnhub quote-only scans", () => {
+    expect(shouldApplyOptionalScannerFilters("finnhub")).toBe(false);
+    expect(shouldApplyOptionalScannerFilters("massive")).toBe(true);
+    const quoteOnlyRow = { price: 12, floatM: 0, marketCap: "—", volume: 0, change: 8, rvol: 0, spread: 0.01 };
+    const thresholds = { minPrice: 2, minFloat: 0, maxFloat: 500, minMarketCap: 0, minDollarVolume: 1, minChange: 5, minRvol: 3, maxSpread: 0.08 };
+    expect(isProviderAwareScannerEligible(quoteOnlyRow, thresholds, "finnhub")).toBe(true);
+    const row = { ...quoteOnlyRow, name: "Quote Only", premarket: 0, high: 13, low: 10, vwap: 11, float: "—", catalystType: "Quote" as const, sector: "", catalyst: "", marketCap: "—", color: "#fff", tape: "" };
+    expect(getProviderAwareScannerRows([row], "Low-Float Momentum", thresholds, "finnhub")).toHaveLength(1);
+    expect(getProviderAwareScannerRows([row], "Relative Volume Leaders", thresholds, "finnhub")).toHaveLength(1);
+    expect(getScannerDataNotice("Relative Volume Leaders", "finnhub")).toContain("RVOL UNAVAILABLE");
+    expect(getScannerDataNotice("Top Gainers", "finnhub")).toBeUndefined();
   });
 });

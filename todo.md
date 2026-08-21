@@ -166,3 +166,32 @@
 - [x] Run TypeScript/Vitest and visually verify browserConsole has no duplicate-key warning.
 
 - [x] Fix the Finnhub-to-Massive quote merge so missing fallback entries never produce undefined quote objects in the client.
+
+# Finnhub scanner eligibility fix
+
+- [x] Prevent unsupported Finnhub fields from being treated as known zero values in scanner eligibility.
+- [x] Show a clear unsupported-data note for filters that cannot be evaluated from the active provider.
+- [x] Add regression coverage proving valid Finnhub quotes are not reduced to zero scanner symbols by unavailable optional metrics.
+- [x] Run TypeScript/Vitest, visually verify the scanner count, and save a checkpoint.
+
+- [x] Distinguish Finnhub rate-limit/provider outage from an empty scanner result in the dashboard so users are not misled by a zero-symbol count.
+
+# Finnhub scanner-mode follow-up
+
+- [x] Treat unsupported Finnhub metrics as unknown in scanner-specific modes, including low-float and RVOL scanners, instead of interpreting them as zero.
+- [x] Add a scanner-logic regression with valid Finnhub-style quote rows and missing optional metrics that asserts rows remain available.
+- [ ] Save a post-scanner-fix checkpoint after clean visual verification of a nonzero Finnhub symbol count.
+
+# Finnhub RVOL scanner follow-up
+
+- [x] Treat Finnhub RVOL-dependent scanner modes as metric-unavailable rather than sorting or filtering on numeric zero.
+- [x] Add actual scanner-mode regression coverage for Finnhub rows in Low-Float Momentum and Relative Volume Leaders.
+
+# Finnhub RVOL state disclosure
+
+- [x] Add an explicit RVOL-unavailable state or label for Finnhub RVOL-dependent scanner modes instead of silently substituting change ordering.
+- [x] Add regression coverage asserting the RVOL-dependent Finnhub state is visibly marked unavailable.
+
+# Client regression discovery
+
+- [x] Include client-side regression tests in Vitest discovery and verify the Finnhub scanner-state assertions execute.
