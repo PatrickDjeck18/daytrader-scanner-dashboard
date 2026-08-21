@@ -87,7 +87,7 @@ const sectors = [
   { name: "EV / Mobility", strength: 63, breadth: "6 / 12", movers: "RIVN · LCID", color: "#34d399" },
 ];
 
-const quoteUniverse = Array.from(new Set([...seedStocks.map(item => item.symbol), "AAPL", "AMD", "AMZN", "COIN", "GOOGL", "LCID", "META", "MSFT", "MSTR", "PLTR", "QBTS", "RIOT", "TSLA"]));
+export const quoteUniverse = Array.from(new Set([...seedStocks.map(item => item.symbol), "AAPL", "AMD", "AMZN", "COIN", "GOOGL", "LCID", "META", "MSFT", "MSTR", "PLTR", "QBTS", "RIOT", "TSLA"])).slice(0, 10);
 const quoteColors = ["#a78bfa", "#38bdf8", "#f59e0b", "#34d399", "#fb7185", "#fb923c", "#22d3ee", "#c084fc"];
 export function providerQuoteToStock(quote: MarketQuote, index: number): Stock { return { symbol: quote.symbol, name: `${quote.symbol} · provider quote`, price: quote.price, change: quote.changePct, volume: quote.volume / 1_000_000, rvol: 0, float: "—", floatM: 0, marketCap: "—", spread: Math.max(.01, quote.ask - quote.bid), sector: "—", catalyst: "Finnhub quote", catalystType: "Quote", vwap: quote.vwap, high: quote.sessionHigh, low: quote.sessionLow, premarket: 0, tape: "Provider quote", color: quoteColors[index % quoteColors.length] }; }
 

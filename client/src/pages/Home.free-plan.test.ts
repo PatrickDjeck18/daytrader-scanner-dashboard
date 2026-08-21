@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { getFreePlanUiState, getNewsItemKey, getProviderAwareScannerRows, getScannerDataNotice, getVisibleScannerRows, isProviderAwareScannerEligible, providerQuoteToStock, shouldApplyOptionalScannerFilters } from "./Home";
+import { getFreePlanUiState, getNewsItemKey, getProviderAwareScannerRows, getScannerDataNotice, getVisibleScannerRows, isProviderAwareScannerEligible, providerQuoteToStock, quoteUniverse, shouldApplyOptionalScannerFilters } from "./Home";
 
 describe("free-plan dashboard state", () => {
   it("shows the entitlement banner when live snapshots are unavailable", () => {
@@ -27,6 +27,11 @@ describe("free-plan dashboard state", () => {
     expect(getProviderAwareScannerRows([row], "Relative Volume Leaders", thresholds, "finnhub")).toHaveLength(1);
     expect(getScannerDataNotice("Relative Volume Leaders", "finnhub")).toContain("RVOL UNAVAILABLE");
     expect(getScannerDataNotice("Top Gainers", "finnhub")).toBeUndefined();
+  });
+
+  it("requests exactly ten provider symbols", () => {
+    expect(quoteUniverse).toHaveLength(10);
+    expect(new Set(quoteUniverse).size).toBe(10);
   });
 
   it("shows more than seven rows and supports showing all eligible rows", () => {

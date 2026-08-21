@@ -220,3 +220,9 @@
 - [x] Fix any code, build, dependency, or packaging issue responsible for deployment timeout.
 - [x] Run production build, TypeScript, and Vitest validation after the fix.
 - [x] Save a verified checkpoint and document whether any remaining timeout is infrastructure-related.
+
+# Finnhub ten-symbol request cap
+
+- [x] Cap the active Finnhub quote request universe at exactly 10 symbols.
+- [x] Preserve provider-backed row creation, no-fake-data behavior, and scanner counts under the cap.
+- [x] Add regression coverage, run validation, visually verify the cap, and save a checkpoint.
