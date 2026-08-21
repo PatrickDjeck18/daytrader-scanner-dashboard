@@ -180,7 +180,7 @@
 
 - [x] Treat unsupported Finnhub metrics as unknown in scanner-specific modes, including low-float and RVOL scanners, instead of interpreting them as zero.
 - [x] Add a scanner-logic regression with valid Finnhub-style quote rows and missing optional metrics that asserts rows remain available.
-- [ ] Save a post-scanner-fix checkpoint after clean visual verification of a nonzero Finnhub symbol count.
+- [x] Save a post-scanner-fix checkpoint after clean visual verification of a nonzero Finnhub symbol count.
 
 # Finnhub RVOL scanner follow-up
 
@@ -195,3 +195,8 @@
 # Client regression discovery
 
 - [x] Include client-side regression tests in Vitest discovery and verify the Finnhub scanner-state assertions execute.
+
+# Final scanner evidence
+
+- [x] Capture inspectable evidence that the running Finnhub scanner panel shows a nonzero symbol count after the final scanner-mode changes.
+- [x] Save a final checkpoint containing that evidence and the fully completed task list.
