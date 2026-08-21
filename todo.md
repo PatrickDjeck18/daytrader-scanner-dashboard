@@ -233,3 +233,12 @@
 - [x] Fix cooldown expiry, health refresh, or UI messaging if the warning persists after the provider window resets.
 - [x] Add regression coverage for cooldown expiry and rate-limit state refresh.
 - [x] Run validation, visually verify the corrected state, and save a checkpoint.
+
+# Aborted market-data request fix
+
+- [x] Trace whether the aborted error comes from provider timeout, client cancellation, or server request lifecycle.
+- [x] Convert expected aborts into typed unavailable quote results without retry loops or fake prices.
+- [x] Add regression coverage for AbortError and operation-aborted messages.
+- [x] Run TypeScript/Vitest, inspect browser console, and save a checkpoint.
+
+- [x] Add direct regression coverage for abort-error classification and safe market fallback behavior.

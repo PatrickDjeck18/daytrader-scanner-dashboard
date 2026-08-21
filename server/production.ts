@@ -27,6 +27,8 @@ export function safeAudit(input: { userId?: number; action: string; resource: st
   return recordAuditEvent(input).catch(error => { console.warn("[Audit] Failed to persist event", error); return false; });
 }
 
+export function isAbortError(error: unknown) { const message = error instanceof Error ? error.message : String(error); return error instanceof DOMException && error.name === "AbortError" || error instanceof Error && error.name === "AbortError" || /operation was aborted|aborted|aborterror/i.test(message); }
+
 export async function fetchWithTimeout(input: RequestInfo | URL, init: RequestInit = {}, timeoutMs = 8_000) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
