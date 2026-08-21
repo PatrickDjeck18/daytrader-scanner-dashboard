@@ -106,3 +106,20 @@
 
 - [x] Add controlled success and failure branch tests for Massive flat-file health without mutating the bucket.
 - [x] Add router-level market.flatFileHealth coverage proving safe metadata on both branches.
+
+# Massive REST documentation alignment
+
+- [x] Review the official Massive REST quickstart and relevant U.S. equity endpoint documentation.
+- [x] Verify the configured server-side MASSIVE_API_KEY separately from flat-file S3 credentials.
+- [x] Correct REST base URL, authentication, snapshot, trades, aggregates, and news request handling as required by the official documentation.
+- [x] Preserve explicit live-only unavailable states and permanent paper-only execution.
+- [x] Add/update provider normalization and error-path tests based on the verified REST response shapes.
+
+- [x] Record that the supplied Massive REST key authenticates but the current plan denies single-ticker snapshot access; keep live-only unavailable behavior until entitled.
+- [x] Change the live snapshot smoke test to distinguish authenticated-but-not-entitled from a successful live quote without making the suite falsely fail.
+
+- [x] Add adapter fixtures for documented snapshot, trade, aggregate, and news response shapes.
+- [x] Align the trades request parameters with the documented Massive endpoint contract and test the query shape.
+- [x] Separate entitlement-denied snapshot coverage from authenticated REST success coverage.
+
+- [x] Add an adapter-level massiveNews() fixture test for the documented news response envelope and mapped fields.
