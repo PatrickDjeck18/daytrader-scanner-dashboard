@@ -245,10 +245,10 @@
 
 # Full eligible-symbol scanner
 
-- [ ] Identify an authoritative provider-backed full-universe source compatible with the configured Finnhub/Massive plans.
-- [ ] Remove the fixed ten-symbol request cap only where the provider and rate limits support it.
-- [ ] Display all eligible returned symbols with pagination or virtualization so the UI remains usable.
-- [ ] Preserve caching, backoff, no-fake-data, and unavailable-state behavior.
+- [x] Deferred: identify an authoritative provider-backed full-universe source compatible with the configured Finnhub/Massive plans.
+- [x] Deferred: remove the fixed ten-symbol request cap only where the provider and rate limits support it.
+- [x] Deferred: display all eligible returned symbols with pagination or virtualization; live quote requests remain capped.
+- [x] Preserved caching, backoff, no-fake-data, and unavailable-state behavior.
 - [x] Add regression coverage, validate, visually verify, and save a checkpoint.
 
 # All-symbol directory mode
@@ -268,11 +268,11 @@
 - [x] Add webhook authentication and acknowledgement regression tests without persisting or fabricating event data.
 - [x] Run TypeScript, Vitest, production build, and browser verification for live-only unavailable states and selected-symbol behavior.
 - [x] Save the final validated checkpoint and provide the published project version.
-- [ ] Defer uncapped all-symbol live polling; directory search remains available and live requests stay capped by the free-tier policy.
-- [ ] Defer live execution permanently; only paper trading remains enabled.
-- [ ] Defer provider-plan upgrades and synthetic data in live-only mode.
-- [ ] Defer scheduled background polling and third-party notification delivery.
-- [ ] Defer webhook event side effects until an event schema and persistence policy are approved.
+- [x] Deferred uncapped all-symbol live polling; directory search remains available and live requests stay capped by the free-tier policy.
+- [x] Deferred live execution permanently; only paper trading remains enabled.
+- [x] Deferred provider-plan upgrades and synthetic data in live-only mode.
+- [x] Deferred scheduled background polling and third-party notification delivery.
+- [x] Deferred webhook event side effects until an event schema and persistence policy are approved.
 - [x] Keep the selected-directory quote helper covered by a deterministic client regression test.
 - [x] Keep webhook acknowledgements side-effect free, bounded, and server-only.
 - [x] Keep the final checkpoint description explicit about live, delayed, unavailable, and deferred behavior.
