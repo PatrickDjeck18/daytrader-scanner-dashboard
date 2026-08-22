@@ -482,3 +482,10 @@
 - [x] Trace and safely normalize empty DeepSeek decision content in the scheduled paper bot.
 - [x] Add regression coverage for empty, malformed, and truncated DeepSeek decision responses.
 - [x] Revalidate, publish, and verify the paper-only error state does not create a simulated order.
+
+# Live DeepSeek paper-bot chart activity
+
+- [x] Inspect the Binance chart and persisted paper-bot activity contracts for safe chart-marker integration.
+- [x] Show refreshed DeepSeek paper-decision status, rationale, and risk outcome in an authenticated activity timeline.
+- [x] Draw clear paper-only entry, stop, target, hold, and risk-blocked markers against the public Binance chart.
+- [x] Add deterministic visualization tests, responsive validation, and publish the updated paper-only activity view.
