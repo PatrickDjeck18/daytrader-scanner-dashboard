@@ -26,4 +26,9 @@ describe("dashboard separation", () => {
     expect(source).toContain('href="/binance"');
     expect(source).not.toContain("Search all U.S. symbols");
   });
+
+  it("places provider-backed crypto news directly below the DeepSeek paper account", () => {
+    const source = readSibling("./BinanceDashboard.tsx");
+    expect(source.indexOf('<section className="binance-paper-section"><BinancePaperBot /></section>')).toBeLessThan(source.indexOf('<section className="binance-news-section"><CryptoNewsWire /></section>'));
+  });
 });

@@ -495,7 +495,12 @@
 - [x] Remove self-service sign-up controls and handlers from the authentication UI.
 - [x] Preserve sign-in, password recovery, recovery callback, and protected-route behavior for existing users.
 - [x] Add regression coverage, validate responsive authentication screens, and publish the access restriction.
-- [ ] Disable Supabase Auth self-service registration at the provider level after the project owner signs in to the Supabase dashboard.
+- [x] Disable Supabase Auth self-service registration at the provider level after the project owner signed in to the Supabase dashboard and confirmed the saved change.
+
+# Binance news placement
+
+- [x] Move the provider-backed public crypto news wire directly below the DeepSeek paper-account section.
+- [x] Validate the reordered authenticated dashboard layout and publish the update.
 
 # DeepSeek paper-only scalping strategy
 
