@@ -26,6 +26,18 @@ The `/binance` route was verified in-browser with no account API configured. Glo
 
 The U.S. Equities root route exposes two visible, semantic navigation links labelled **U.S. Equities** and **Binance Crypto**, targeting the separately routed dashboards. A direct browser-click attempt was interrupted by the browser connector rather than by an application navigation error, so the route targets are also covered by deterministic page-source regression tests and are verified through direct route navigation.
 
+## Binance announcement-news research
+
+Binance officially announced a real-time English **Announcements WebSocket** on 2025-07-28. The announcement says the stream delivers Binance announcements directly without polling or delays. Binance’s developer-center catalogue separately advertises an **Announcements** product described as getting the latest Binance announcements in real time. The documentation landing page did not expose the stream schema to the text-only browser view, so implementation must discover and validate the exact endpoint and message contract before claiming a browser stream is connected. This source covers Binance platform announcements, listings, product notices, and promotions; it is not a general third-party crypto news wire.
+
+The official Announcements WebSocket reference confirms the base URL `wss://api.binance.com/sapi/wss`, but it is a signed, authenticated API: it requires a user API key in the `X-MBX-APIKEY` WebSocket header, a timestamp/signature in the connection URL, periodic PING messages, and reconnection after 24 hours. It therefore cannot be used in the current no-Binance-API scope. The documentation also exposes an **Announcements** reference page for topic details, but private credentials must never be used in the browser.
+
+Sources: [Binance announcement launch](https://www.binance.com/en/support/announcement/detail/a72645c63e4a4062b77db52b86fef1bb), [Binance Announcements WebSocket API basic information](https://developers.binance.com/en/docs/products/announcements/general-info), [Binance Developer Center](https://developers.binance.com/en).
+
+## Public crypto news wire verification
+
+The selected no-account implementation fetches the official CoinDesk RSS URL server-side and refreshes its typed dashboard query every 60 seconds only while the Binance dashboard is open. Direct tRPC verification and live browser rendering confirmed provider-returned headlines, canonical article links, source labels, provider publication timestamps, and a visible “Near-real-time provider feed” label. No Binance key, account connection, generated headline, summary, timestamp, or catalyst is used. CoinDesk states its RSS feed updates as soon as it publishes a story; the dashboard deliberately does not call it a streaming feed.
+
 ## Sources
 
 1. [Binance Market Data Only URLs](https://developers.binance.com/en/docs/products/spot/faqs/market_data_only)

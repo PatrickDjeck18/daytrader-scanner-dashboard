@@ -48,6 +48,28 @@ export type CryptoTrade = {
   buyerIsMaker: boolean | null;
 };
 
+export type CryptoNewsItem = {
+  id: string;
+  title: string;
+  source: string;
+  url: string;
+  publishedAt: number;
+};
+
+export type CryptoNewsFeed = {
+  provider: "CoinDesk RSS";
+  availability: "available" | "unavailable";
+  freshness: "near-real-time";
+  refreshIntervalMs: number;
+  fetchedAt: number;
+  items: CryptoNewsItem[];
+  providerError?: string;
+};
+
+export function unavailableCryptoNews(reason: string, fetchedAt = Date.now()): CryptoNewsFeed {
+  return { provider: "CoinDesk RSS", availability: "unavailable", freshness: "near-real-time", refreshIntervalMs: 60_000, fetchedAt, items: [], providerError: reason };
+}
+
 function finiteNumber(value: unknown): number | null {
   const parsed = typeof value === "number" ? value : typeof value === "string" ? Number(value) : Number.NaN;
   return Number.isFinite(parsed) ? parsed : null;

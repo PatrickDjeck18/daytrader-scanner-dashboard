@@ -424,3 +424,24 @@
 - [x] Verify that the U.S. Equities and Binance Crypto switcher controls navigate to their respective dedicated routes on desktop and mobile.
 - [x] Add or refine any necessary switching affordance so the active dashboard and navigation action are unmistakable.
 - [x] Add deterministic coverage for route targets, verify actual browser navigation, and publish the result.
+
+# Binance crypto news
+
+- [x] Verify official/public crypto-news sources, delivery mechanisms, rate limits, and freshness semantics without requiring the user’s Binance account API.
+- [x] Add a provider-backed Binance dashboard news panel with source, timestamp, link, and truthful live or delayed labels.
+- [x] Do not fabricate headlines, summaries, timestamps, or catalyst classifications when the source is unavailable.
+- [x] Add deterministic tests and responsive verification for news loading, unavailable, duplicate, and fresh-item states.
+
+# Public crypto news wire
+
+- [x] Integrate the selected public crypto RSS feed without requesting Binance credentials or connecting a Binance account.
+- [x] Fetch and normalize only provider-returned headline, publication time, source, and canonical article link.
+- [x] Refresh the news feed only while the dashboard is open and label it as near-real-time rather than streaming.
+- [x] Retain an explicit unavailable state and prevent generated headlines, timestamps, links, summaries, or catalyst classifications.
+
+# Official Binance announcement stream
+
+- [x] Deferred by the selected no-account scope: the official Binance Announcements WebSocket requires an API key and signed connection.
+- [x] Deferred by the selected no-account scope: do not implement an authenticated Binance Announcements client or introduce credentials.
+- [x] Superseded by the public RSS wire: provider-returned CoinDesk title, publication time, source, and canonical link now render in the Binance-only news panel.
+- [x] Validated the public no-account route: no Binance trading/account code or secrets were added, and RSS failures return a truthful unavailable state.

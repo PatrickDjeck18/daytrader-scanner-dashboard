@@ -13,6 +13,8 @@ import { assertPaperOnlyOrder, replayBars, runScannerBacktest } from "./backtest
 import { checkMassiveFlatFileHealth } from "./massive-flatfiles";
 import { CRYPTO_INTERVALS, CRYPTO_MARKETS, unavailableCryptoQuote } from "@shared/crypto";
 import { fetchBinanceCryptoBars, fetchBinanceCryptoQuote, fetchBinanceCryptoTickers, fetchBinanceCryptoTrades } from "./binance";
+import { unavailableCryptoNews } from "@shared/crypto";
+import { fetchPublicCryptoNews } from "./crypto-news";
 
 const activeMarketProvider = process.env.FINNHUB_API_KEY ? finnhubProvider : massiveProvider;
 const activeProviderName = process.env.FINNHUB_API_KEY ? "finnhub" : "massive";
@@ -53,6 +55,7 @@ export const appRouter = router({
     tickers: publicProcedure.input(z.object({ market: z.enum(CRYPTO_MARKETS), limit: z.number().int().min(1).max(24).default(12) })).query(async ({ ctx, input }) => { try { assertRateLimit(`crypto-tickers:${clientKey(ctx.req)}`, 8, 60_000); } catch (error) { if (error instanceof TRPCError && error.code === "TOO_MANY_REQUESTS") return []; throw error; } return fetchBinanceCryptoTickers(input.market, input.limit); }),
     bars: publicProcedure.input(z.object({ market: z.enum(CRYPTO_MARKETS), symbol: z.string().trim().toUpperCase().regex(/^[A-Z0-9/_\-]{5,24}$/), interval: z.enum(CRYPTO_INTERVALS), limit: z.number().int().min(20).max(240).default(120) })).query(async ({ ctx, input }) => { try { assertRateLimit(`crypto-bars:${clientKey(ctx.req)}`, 20, 60_000); } catch (error) { if (error instanceof TRPCError && error.code === "TOO_MANY_REQUESTS") return []; throw error; } try { return await fetchBinanceCryptoBars(input.market, input.symbol, input.interval, input.limit); } catch { return []; } }),
     trades: publicProcedure.input(z.object({ market: z.enum(CRYPTO_MARKETS), symbol: z.string().trim().toUpperCase().regex(/^[A-Z0-9/_\-]{5,24}$/), limit: z.number().int().min(1).max(50).default(10) })).query(async ({ ctx, input }) => { try { assertRateLimit(`crypto-trades:${clientKey(ctx.req)}`, 20, 60_000); } catch (error) { if (error instanceof TRPCError && error.code === "TOO_MANY_REQUESTS") return []; throw error; } try { return await fetchBinanceCryptoTrades(input.market, input.symbol, input.limit); } catch { return []; } }),
+    news: publicProcedure.input(z.object({ limit: z.number().int().min(1).max(20).default(10) })).query(async ({ ctx, input }) => { try { assertRateLimit(`crypto-news:${clientKey(ctx.req)}`, 8, 60_000); } catch (error) { if (error instanceof TRPCError && error.code === "TOO_MANY_REQUESTS") return unavailableCryptoNews("Local crypto news request cooldown active"); throw error; } return fetchPublicCryptoNews(input.limit); }),
   }),
 
   workspace: router({
