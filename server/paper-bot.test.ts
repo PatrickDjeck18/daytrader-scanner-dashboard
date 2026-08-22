@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { assessFastMomentumDecision, assessRangeReversionDecision, assessScalpingDecision, attachHoldDiagnostic, buildRiskManagedPaperOrder, constrainDecisionToConfiguredSymbols, deriveHoldCategory, detectRangeRegime, isDailyLossStopped, parseDeepSeekDecisionContent, rangeInactiveHold, requestDeepSeekDecision, toUtcDateKey } from "./paper-bot";
+import { assessFastMomentumDecision, assessRangeReversionDecision, assessScalpingDecision, attachHoldDiagnostic, buildLearningPaperOrder, buildRiskManagedPaperOrder, coerceLearningDecision, constrainDecisionToConfiguredSymbols, deriveHoldCategory, detectRangeRegime, isDailyLossStopped, parseDeepSeekDecisionContent, rangeInactiveHold, requestDeepSeekDecision, toUtcDateKey } from "./paper-bot";
 
 const account = { equity: 10_000, buyingPower: 10_000, dailyStartEquity: 10_000, positions: [] };
 describe("Binance paper bot risk controls", () => {
@@ -60,5 +60,14 @@ describe("Binance paper bot risk controls", () => {
     expect(detectRangeRegime(trend)).toBe("trend");
     expect(rangeInactiveHold("BTCUSDT", "trend")).toMatchObject({ action: "hold", holdCategory: "no_qualified_setup" });
     expect(rangeInactiveHold("BTCUSDT", "trend").reason).toContain("mode inactive");
+  });
+  it("uses a valid provider mark to demonstrate the paper lifecycle in Learning Mode when the model returns hold", () => {
+    const held = { action: "hold" as const, symbol: "BTCUSDT", confidence: 0, stopPrice: null, targetPrice: null, reason: "Mixed context" };
+    const entry = coerceLearningDecision({ decision: held, markPrice: 100, hasPosition: false });
+    expect(entry).toMatchObject({ action: "buy", learningFallback: true, stopPrice: 99, targetPrice: 101 });
+    expect(buildLearningPaperOrder({ decision: entry, markPrice: 100, account })).toMatchObject({ allowed: true, side: "buy", quantity: 10 });
+    const exit = coerceLearningDecision({ decision: held, markPrice: 100, hasPosition: true });
+    expect(exit).toMatchObject({ action: "sell", learningFallback: true });
+    expect(buildLearningPaperOrder({ decision: exit, markPrice: 100, account: { ...account, positions: [{ symbol: "BTCUSDT", quantity: 10, averageCost: 100 }] } })).toMatchObject({ allowed: true, side: "sell", quantity: 10 });
   });
 });

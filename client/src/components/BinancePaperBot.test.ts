@@ -30,4 +30,8 @@ describe("BinancePaperBot display state", () => {
     expect(stats).toMatchObject({ decisions: 3, under40: 1, mid: 1, qualified: 1, modelOrParserHolds: 1 });
     expect(stats.averageConfidence).toBeCloseTo(.466, 2);
   });
+
+  it("recognizes Learning Mode as a persisted paper strategy", () => {
+    expect(getPaperBotDisplayState({ enabled: 1, orders: [] })).toBe("scheduled");
+  });
 });

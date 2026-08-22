@@ -1,7 +1,7 @@
 import { fetchBinanceCryptoBars, fetchBinanceCryptoQuote } from "./binance";
 import { binancePaperAccountSummary, completePaperBotRun, createBinancePaperOrder, ensureBinancePaperAccount, getPaperBotConfigByTaskUid, listEnabledPaperBotConfigsByTaskUid, startPaperBotRun } from "./db";
 import { paperBotConfigs } from "../drizzle/schema";
-import { assessPaperBotDecision, attachHoldDiagnostic, buildRiskManagedPaperOrder, detectRangeRegime, isDailyLossStopped, PAPER_BOT_STRATEGIES, type PaperBotStrategy, rangeInactiveHold, requestDeepSeekDecision } from "./paper-bot";
+import { assessPaperBotDecision, attachHoldDiagnostic, buildLearningPaperOrder, buildRiskManagedPaperOrder, coerceLearningDecision, detectRangeRegime, isDailyLossStopped, PAPER_BOT_STRATEGIES, type PaperBotStrategy, rangeInactiveHold, requestDeepSeekDecision } from "./paper-bot";
 import { safeAudit } from "./production";
 
 type PaperBotConfig = typeof paperBotConfigs.$inferSelect;
@@ -18,14 +18,15 @@ async function runPaperBotSymbol(input: { config: PaperBotConfig; taskUid: strin
   if (!started.created) return { ok: true, symbol: context.symbol, skipped: "duplicate" as const };
   try {
     const account = await binancePaperAccountSummary(config.userId, prices);
-    if (isDailyLossStopped(account, Number(config.dailyLossStopPct))) { await completePaperBotRun({ id: started.run.id, configId: config.id, status: "risk_blocked", error: "Daily simulated-loss stop is active" }); return { ok: true, symbol: context.symbol, status: "risk_blocked" as const }; }
+    const learningMode = strategy === "learning_mode";
+    if (!learningMode && isDailyLossStopped(account, Number(config.dailyLossStopPct))) { await completePaperBotRun({ id: started.run.id, configId: config.id, status: "risk_blocked", error: "Daily simulated-loss stop is active" }); return { ok: true, symbol: context.symbol, status: "risk_blocked" as const }; }
     const rawDecision = strategy === "range_reversion" && detectRangeRegime(context) !== "range" ? rangeInactiveHold(context.symbol, detectRangeRegime(context)) : await requestDeepSeekDecision({ configuredSymbols: [context.symbol], strategy, marketContext: { strategy, market: "global-spot", evaluationSymbol: context.symbol, account: { equity: account.equity, buyingPower: account.buyingPower, positions: account.positions.map(item => ({ symbol: item.symbol, quantity: item.quantity, averageCost: item.averageCost })) }, context } });
-    const decision = attachHoldDiagnostic(rawDecision, context);
-    const markPrice = prices[decision.symbol]; const assessment = assessPaperBotDecision({ strategy, decision, markPrice, context });
+    const diagnosedDecision = attachHoldDiagnostic(rawDecision, context);
+    const markPrice = prices[context.symbol]; const decision = learningMode ? coerceLearningDecision({ decision: diagnosedDecision, markPrice, hasPosition: account.positions.some(position => position.symbol === context.symbol && position.quantity > 0) }) : diagnosedDecision; const assessment = learningMode ? { allowed: true as const } : assessPaperBotDecision({ strategy, decision, markPrice, context });
     if (!assessment.allowed) { await completePaperBotRun({ id: started.run.id, configId: config.id, status: decision.action === "hold" ? "hold" : "risk_blocked", decision, error: assessment.reason }); return { ok: true, symbol: context.symbol, status: decision.action === "hold" ? "hold" as const : "risk_blocked" as const }; }
-    const order = buildRiskManagedPaperOrder({ decision, markPrice, account, riskPct: Number(config.riskPct), maxOpenPositions: config.maxOpenPositions });
+    const order = learningMode ? buildLearningPaperOrder({ decision, markPrice, account }) : buildRiskManagedPaperOrder({ decision, markPrice, account, riskPct: Number(config.riskPct), maxOpenPositions: config.maxOpenPositions });
     if (!order.allowed) { await completePaperBotRun({ id: started.run.id, configId: config.id, status: decision.action === "hold" ? "hold" : "risk_blocked", decision, error: order.reason }); return { ok: true, symbol: context.symbol, status: decision.action === "hold" ? "hold" as const : "risk_blocked" as const }; }
-    const created = await createBinancePaperOrder(config.userId, { idempotencyKey: `bot-order:${started.run.runKey}`, symbol: decision.symbol, side: order.side, quantity: order.quantity, markPrice, stopPrice: order.stopPrice, targetPrice: order.targetPrice, source: "deepseek-scheduled-paper-bot" });
+    const created = await createBinancePaperOrder(config.userId, { idempotencyKey: `bot-order:${started.run.runKey}`, symbol: decision.symbol, side: order.side, quantity: order.quantity, markPrice, stopPrice: order.stopPrice, targetPrice: order.targetPrice, source: learningMode ? "deepseek-learning-paper-bot" : "deepseek-scheduled-paper-bot" });
     await completePaperBotRun({ id: started.run.id, configId: config.id, status: "ordered", decision }); await safeAudit({ userId: config.userId, action: "binance_paper_bot_order", resource: decision.symbol, metadata: { orderId: created?.id, side: order.side, quantity: order.quantity, mode: "paper" }, requestId: started.run.runKey }); return { ok: true, symbol: context.symbol, status: "ordered" as const };
   } catch (error) { const message = error instanceof Error ? error.message : "Paper bot run failed"; await completePaperBotRun({ id: started.run.id, configId: config.id, status: "error", error: message }); return { ok: false, symbol: context.symbol, status: "error" as const, error: message }; }
 }

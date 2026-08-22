@@ -559,3 +559,22 @@
 - [x] Inspect the connected GitHub destination and choose the repository export target.
 - [x] Confirm the repository creation or update operation before pushing project code externally.
 - [x] Export the current published project source to the confirmed GitHub repository and report the result.
+
+# Supabase backend verification
+
+- [x] Inspect active database adapter, authentication, and persistence configuration for Supabase-only backend paths.
+- [x] Validate Supabase database connectivity and check for active legacy database dependencies.
+- [x] Report the backend verification outcome and any remaining non-Supabase infrastructure boundaries.
+
+# Credential-storage review
+
+- [ ] Inventory active public configuration and private secret categories without exposing values.
+- [ ] Define the safe Supabase-compatible storage boundary for public configuration, managed application secrets, and per-user data.
+- [ ] Apply only approved safe configuration changes; do not store private keys in Supabase tables or client code.
+
+# Permissive paper-learning mode
+
+- [x] Audit the scheduler, persisted run outcomes, and every current paper-order rejection gate.
+- [x] Add a visible permissive learning mode that removes discretionary risk/strategy filters while retaining paper-only and execution-integrity checks.
+- [ ] Verify a valid simulated order can be created under learning mode without any live Binance interaction.
+- [ ] Add regression coverage, validate, and publish the learning-mode repair.
