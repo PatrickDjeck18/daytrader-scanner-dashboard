@@ -462,3 +462,17 @@
 
 - [x] Remove the requested “Supabase-backed identity” heading and “Email/password sessions managed by Supabase Auth.” sentence from the authentication screen.
 - [x] Verify the sign-in screen remains balanced and responsive after the copy removal, then publish the update.
+
+# Binance paper account and DeepSeek paper bot
+
+ - [x] Define a persistent $10,000 Binance paper account, supported public markets, balances, positions, fills, realized/unrealized P&L, and reset policy.
+ - [x] Enforce no-live-execution guardrails: no Binance account credential, order, leverage, margin, transfer, withdrawal, or prediction-trading integration.
+ - [x] Define bot risk limits, quote freshness requirements, daily loss controls, position sizing, duplicate-order protection, and explicit simulation labels.
+ - [x] Configure a server-only DeepSeek API credential and validate the connection without exposing the key to the browser or Supabase tables.
+ - [x] Add a DeepSeek-assisted market-analysis and paper-trade decision workflow using provider-returned Binance market context only.
+ - [x] Persist paper account, bot configuration, bot decisions, simulated orders, and audit history per Supabase-authenticated user.
+ - [x] Add deterministic simulation, risk-limit, persistence, no-live-order, and DeepSeek failure-path coverage; verify protected desktop/mobile routes.
+- [ ] Implement the user-selected scheduled paper-bot mode with a managed job, idempotent runs, a pause/resume control, and no in-process timer.
+ - [x] Apply the selected 1m, 5m, and 15m decision context, 1% per-trade risk limit, and 3% daily simulated-loss stop to every bot run.
+ - [x] Resolve scheduled paper-bot TypeScript mismatches for Binance bar timestamps, quote availability, and cron callback request typing.
+ - [x] Resolve the paper-bot UI ticker-price type mismatch and add the responsive paper-account/bot styles.

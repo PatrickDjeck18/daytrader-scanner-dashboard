@@ -8,13 +8,14 @@ import { z } from "zod";
 import type { MarketQuote } from "@shared/scanner";
 import { massiveNews, massiveProvider } from "./massive";
 import { finnhubNews, finnhubProvider, finnhubSymbols } from "./finnhub";
-import { addWatchlistItem, createAlertRule, createBacktestRun, createPaperOrder, createWatchlist, deleteAlertRule, deleteLayout, deletePreset, deleteWatchlist, deleteWatchlistItem, getProviderHealth, listAlertRules, listBacktestRuns, listLayouts, listPaperOrders, listPresets, listWatchlistItems, listWatchlists, paperAccountSummary, saveLayout, savePreset } from "./db";
+import { addWatchlistItem, binancePaperAccountSummary, createAlertRule, createBacktestRun, createPaperOrder, createWatchlist, deleteAlertRule, deleteLayout, deletePreset, deleteWatchlist, deleteWatchlistItem, ensurePaperBotConfig, getProviderHealth, listAlertRules, listBacktestRuns, listBinancePaperOrders, listLayouts, listPaperBotRuns, listPaperOrders, listPresets, listWatchlistItems, listWatchlists, paperAccountSummary, saveLayout, savePaperBotConfig, savePreset } from "./db";
 import { assertPaperOnlyOrder, replayBars, runScannerBacktest } from "./backtest";
 import { checkMassiveFlatFileHealth } from "./massive-flatfiles";
 import { CRYPTO_INTERVALS, CRYPTO_MARKETS, unavailableCryptoQuote } from "@shared/crypto";
 import { fetchBinanceCryptoBars, fetchBinanceCryptoQuote, fetchBinanceCryptoTickers, fetchBinanceCryptoTrades } from "./binance";
 import { unavailableCryptoNews } from "@shared/crypto";
 import { fetchPublicCryptoNews } from "./crypto-news";
+import { enableScheduledPaperBot, pauseScheduledPaperBot, supportedBotIntervals } from "./paper-bot-schedule";
 
 const activeMarketProvider = process.env.FINNHUB_API_KEY ? finnhubProvider : massiveProvider;
 const activeProviderName = process.env.FINNHUB_API_KEY ? "finnhub" : "massive";
@@ -80,6 +81,17 @@ export const appRouter = router({
     backtestRuns: auditedProtectedProcedure.query(({ ctx }) => listBacktestRuns(ctx.user.id)),
     replay: auditedProtectedProcedure.input(z.object({ bars: z.array(z.object({ timestamp: z.number(), open: z.number(), high: z.number(), low: z.number(), close: z.number(), volume: z.number() })).min(1), speed: z.number().positive().default(1) })).query(({ input }) => replayBars(input.bars, input.speed)),
     backtest: auditedProtectedProcedure.input(z.object({ name: z.string().trim().min(1).max(120), bars: z.array(z.object({ timestamp: z.number().int().nonnegative(), open: z.number().positive(), high: z.number().positive(), low: z.number().positive(), close: z.number().positive(), volume: z.number().nonnegative() })).min(2).max(100_000), config: z.object({ minChangePct: z.number().finite().min(-100).max(1_000), minRvol: z.number().finite().min(0).max(1_000), initialCapital: z.number().positive().max(100_000_000), positionSize: z.number().positive().max(100_000_000), slippageBps: z.number().finite().min(0).max(1_000).default(0), feePerTrade: z.number().finite().min(0).max(100_000).default(0) }) })).mutation(async ({ ctx, input }) => { const metrics = runScannerBacktest(input.bars, input.config); await createBacktestRun(ctx.user.id, input.name, input.config, metrics); await safeAudit({ userId: ctx.user.id, action: "backtest_completed", resource: input.name, metadata: { bars: input.bars.length }, requestId: requestId(ctx.req) }); return metrics; }),
+  }),
+
+  binancePaper: router({
+    account: auditedProtectedProcedure.input(z.object({ prices: z.record(z.string(), z.number()).default({}) })).query(({ ctx, input }) => binancePaperAccountSummary(ctx.user.id, input.prices)),
+    orders: auditedProtectedProcedure.query(({ ctx }) => listBinancePaperOrders(ctx.user.id)),
+    botConfig: auditedProtectedProcedure.query(({ ctx }) => ensurePaperBotConfig(ctx.user.id)),
+    botRuns: auditedProtectedProcedure.query(({ ctx }) => listPaperBotRuns(ctx.user.id)),
+    saveBotConfig: auditedProtectedProcedure.input(z.object({ symbols: z.array(z.string().regex(/^[A-Z0-9]{5,24}$/)).min(1).max(6), scheduleMinutes: z.union([z.literal(1), z.literal(5), z.literal(15)]), riskPct: z.number().positive().max(2), dailyLossStopPct: z.number().positive().max(5), maxOpenPositions: z.number().int().min(1).max(3) })).mutation(({ ctx, input }) => savePaperBotConfig(ctx.user.id, input)),
+    enableBot: auditedProtectedProcedure.input(z.object({ scheduleMinutes: z.union([z.literal(1), z.literal(5), z.literal(15)]) })).mutation(async ({ ctx, input }) => { try { const config = await enableScheduledPaperBot(ctx.user.id, input.scheduleMinutes); await safeAudit({ userId: ctx.user.id, action: "binance_paper_bot_enabled", resource: "binance-paper-bot", metadata: { scheduleMinutes: input.scheduleMinutes, mode: "paper" }, requestId: requestId(ctx.req) }); return config; } catch (error) { throw new TRPCError({ code: "BAD_REQUEST", message: error instanceof Error ? error.message : "Paper bot could not be enabled" }); } }),
+    pauseBot: auditedProtectedProcedure.mutation(async ({ ctx }) => { const config = await pauseScheduledPaperBot(ctx.user.id); await safeAudit({ userId: ctx.user.id, action: "binance_paper_bot_paused", resource: "binance-paper-bot", metadata: { mode: "paper" }, requestId: requestId(ctx.req) }); return config; }),
+    supportedIntervals: auditedProtectedProcedure.query(() => supportedBotIntervals),
   }),
 
   // TODO: add feature routers here, e.g.

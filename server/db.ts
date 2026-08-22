@@ -2,7 +2,7 @@ import { and, eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/node-postgres";
 import { lookup } from "node:dns/promises";
 import { Pool } from "pg";
-import { InsertUser, users, watchlists, watchlistItems, scannerPresets, alertRules, workspaceLayouts, paperOrders, backtestRuns, auditEvents, providerHealth } from "../drizzle/schema";
+import { InsertUser, users, watchlists, watchlistItems, scannerPresets, alertRules, workspaceLayouts, paperOrders, backtestRuns, auditEvents, providerHealth, binancePaperAccounts, binancePaperOrders, paperBotConfigs, paperBotRuns, paperBotScheduleTasks } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
 let _db: ReturnType<typeof drizzle> | null = null;
@@ -139,5 +139,55 @@ export function calculatePaperPnl(orders: Array<{ symbol: string; side: "buy" | 
 export async function paperAccountSummary(userId: number, prices: Record<string, number> = {}) { const orders = await listPaperOrders(userId); const filledOrders = orders.filter(order => order.status === "filled"); const used = filledOrders.reduce((sum, order) => sum + (order.side === "buy" ? 1 : -1) * Number(order.quantity) * Number(order.fillPrice ?? 0), 0); return { mode: "paper" as const, buyingPower: 100000 - Math.max(0, used), usedCapital: used, ...calculatePaperPnl(orders, prices) }; }
 export async function listBacktestRuns(userId: number) { const db = await getDb(); if (!db) return []; return db.select().from(backtestRuns).where(eq(backtestRuns.userId, userId)); }
 export async function createBacktestRun(userId: number, name: string, strategy: unknown, metrics: unknown) { const db = await getDb(); if (!db) throw new Error("Database unavailable"); await db.insert(backtestRuns).values({ userId, name, strategy: JSON.stringify(strategy), metrics: JSON.stringify(metrics), status: "completed" }); return true; }
+
+const DEFAULT_BOT_SYMBOLS = ["BTCUSDT", "ETHUSDT", "SOLUSDT"];
+const asNumber = (value: string | number | null | undefined) => Number(value ?? 0);
+const todayKey = () => new Date().toISOString().slice(0, 10);
+
+export async function ensureBinancePaperAccount(userId: number) {
+  const db = await getDb(); if (!db) throw new Error("Database unavailable");
+  let account = (await db.select().from(binancePaperAccounts).where(eq(binancePaperAccounts.userId, userId)).limit(1))[0];
+  if (!account) { await db.insert(binancePaperAccounts).values({ userId, initialCapital: "10000.00", dailyStartEquity: "10000.00", dailyAnchor: todayKey() }); account = (await db.select().from(binancePaperAccounts).where(eq(binancePaperAccounts.userId, userId)).limit(1))[0]; }
+  if (!account) throw new Error("Binance paper account could not be initialized");
+  return account;
+}
+
+export function calculateBinancePaperPnl(orders: Array<{ symbol: string; side: "buy" | "sell"; quantity: string | number; fillPrice: string | number }>, prices: Record<string, number> = {}) {
+  const state = new Map<string, { quantity: number; averageCost: number }>(); let realizedPnl = 0;
+  for (const order of orders) { const quantity = asNumber(order.quantity); const fill = asNumber(order.fillPrice); if (!Number.isFinite(quantity) || quantity <= 0 || !Number.isFinite(fill) || fill <= 0) continue; const position = state.get(order.symbol) ?? { quantity: 0, averageCost: 0 }; if (order.side === "buy") { const nextQuantity = position.quantity + quantity; position.averageCost = nextQuantity ? ((position.quantity * position.averageCost) + quantity * fill) / nextQuantity : 0; position.quantity = nextQuantity; } else { const closed = Math.min(position.quantity, quantity); realizedPnl += closed * (fill - position.averageCost); position.quantity -= closed; if (position.quantity <= 0) position.averageCost = 0; } state.set(order.symbol, position); }
+  const positions = Array.from(state.entries()).filter(([, item]) => item.quantity > 0).map(([symbol, item]) => { const marketPrice = prices[symbol] ?? item.averageCost; return { symbol, quantity: item.quantity, averageCost: item.averageCost, marketPrice, unrealizedPnl: item.quantity * (marketPrice - item.averageCost) }; });
+  const usedCapital = positions.reduce((sum, item) => sum + item.quantity * item.averageCost, 0); const unrealizedPnl = positions.reduce((sum, item) => sum + item.unrealizedPnl, 0);
+  return { realizedPnl, unrealizedPnl, usedCapital, positions };
+}
+
+export async function listBinancePaperOrders(userId: number) { const db = await getDb(); if (!db) return []; return db.select().from(binancePaperOrders).where(eq(binancePaperOrders.userId, userId)); }
+export async function binancePaperAccountSummary(userId: number, prices: Record<string, number> = {}) {
+  const account = await ensureBinancePaperAccount(userId); const orders = await listBinancePaperOrders(userId); const pnl = calculateBinancePaperPnl(orders, prices); const initialCapital = asNumber(account.initialCapital); const equity = initialCapital + pnl.realizedPnl + pnl.unrealizedPnl; const currentDay = todayKey(); let dailyStartEquity = asNumber(account.dailyStartEquity);
+  if (account.dailyAnchor !== currentDay) { dailyStartEquity = equity; const db = await getDb(); if (db) await db.update(binancePaperAccounts).set({ dailyAnchor: currentDay, dailyStartEquity: String(equity), updatedAt: new Date() }).where(eq(binancePaperAccounts.id, account.id)); }
+  return { mode: "paper" as const, venue: "binance-public-simulation" as const, initialCapital, currency: account.currency, equity, buyingPower: Math.max(0, initialCapital + pnl.realizedPnl - pnl.usedCapital), dailyStartEquity, dailyPnl: equity - dailyStartEquity, ...pnl };
+}
+
+export async function createBinancePaperOrder(userId: number, input: { idempotencyKey: string; symbol: string; side: "buy" | "sell"; quantity: number; markPrice: number; stopPrice?: number | null; targetPrice?: number | null; source?: string }) {
+  const db = await getDb(); if (!db) throw new Error("Database unavailable"); const account = await ensureBinancePaperAccount(userId); const existing = (await db.select().from(binancePaperOrders).where(eq(binancePaperOrders.idempotencyKey, input.idempotencyKey)).limit(1))[0]; if (existing) return existing;
+  await db.insert(binancePaperOrders).values({ userId, accountId: account.id, symbol: input.symbol, side: input.side, quantity: String(input.quantity), fillPrice: String(input.markPrice), stopPrice: input.stopPrice ? String(input.stopPrice) : undefined, targetPrice: input.targetPrice ? String(input.targetPrice) : undefined, idempotencyKey: input.idempotencyKey, source: input.source ?? "paper-bot" });
+  return (await db.select().from(binancePaperOrders).where(eq(binancePaperOrders.idempotencyKey, input.idempotencyKey)).limit(1))[0];
+}
+
+export async function ensurePaperBotConfig(userId: number) {
+  const db = await getDb(); if (!db) throw new Error("Database unavailable"); let config = (await db.select().from(paperBotConfigs).where(eq(paperBotConfigs.userId, userId)).limit(1))[0];
+  if (!config) { await db.insert(paperBotConfigs).values({ userId, symbols: JSON.stringify(DEFAULT_BOT_SYMBOLS), scheduleMinutes: 5, riskPct: "1.000", dailyLossStopPct: "3.000", maxOpenPositions: 3, enabled: 0 }); config = (await db.select().from(paperBotConfigs).where(eq(paperBotConfigs.userId, userId)).limit(1))[0]; }
+  if (!config) throw new Error("Paper bot configuration could not be initialized"); return config;
+}
+
+export async function savePaperBotConfig(userId: number, input: { symbols: string[]; scheduleMinutes: number; riskPct: number; dailyLossStopPct: number; maxOpenPositions: number; enabled?: boolean }) {
+  const db = await getDb(); if (!db) throw new Error("Database unavailable"); const current = await ensurePaperBotConfig(userId); await db.update(paperBotConfigs).set({ symbols: JSON.stringify(input.symbols), scheduleMinutes: input.scheduleMinutes, riskPct: String(input.riskPct), dailyLossStopPct: String(input.dailyLossStopPct), maxOpenPositions: input.maxOpenPositions, enabled: input.enabled === true ? 1 : 0, scheduleCronTaskUid: null, lastRunStatus: input.enabled === true ? current.lastRunStatus : "settings_saved", lastRunError: null, updatedAt: new Date() }).where(eq(paperBotConfigs.id, current.id)); return ensurePaperBotConfig(userId);
+}
+export async function updatePaperBotSchedule(userId: number, input: { enabled: boolean; taskUid?: string | null; status?: string; error?: string | null }) { const db = await getDb(); if (!db) throw new Error("Database unavailable"); const current = await ensurePaperBotConfig(userId); await db.update(paperBotConfigs).set({ enabled: input.enabled ? 1 : 0, ...(input.taskUid === undefined ? {} : { scheduleCronTaskUid: input.taskUid }), lastRunStatus: input.status ?? current.lastRunStatus, lastRunError: input.error ?? null, updatedAt: new Date() }).where(eq(paperBotConfigs.id, current.id)); return ensurePaperBotConfig(userId); }
+export async function getPaperBotConfigByTaskUid(taskUid: string) { const db = await getDb(); if (!db) return undefined; return (await db.select().from(paperBotConfigs).where(eq(paperBotConfigs.scheduleCronTaskUid, taskUid)).limit(1))[0]; }
+export async function listEnabledPaperBotConfigsByTaskUid(taskUid: string) { const db = await getDb(); if (!db) return []; return db.select().from(paperBotConfigs).where(and(eq(paperBotConfigs.scheduleCronTaskUid, taskUid), eq(paperBotConfigs.enabled, 1))); }
+export async function getPaperBotScheduleTask(intervalMinutes: number) { const db = await getDb(); if (!db) throw new Error("Database unavailable"); return (await db.select().from(paperBotScheduleTasks).where(eq(paperBotScheduleTasks.intervalMinutes, intervalMinutes)).limit(1))[0]; }
+export async function listPaperBotRuns(userId: number) { const db = await getDb(); if (!db) return []; return db.select().from(paperBotRuns).where(eq(paperBotRuns.userId, userId)).limit(30); }
+export async function startPaperBotRun(input: { userId: number; configId: number; runKey: string; marketContext: unknown }) { const db = await getDb(); if (!db) throw new Error("Database unavailable"); const existing = (await db.select().from(paperBotRuns).where(eq(paperBotRuns.runKey, input.runKey)).limit(1))[0]; if (existing) return { run: existing, created: false }; await db.insert(paperBotRuns).values({ userId: input.userId, configId: input.configId, runKey: input.runKey, marketContext: JSON.stringify(input.marketContext), status: "started" }); const run = (await db.select().from(paperBotRuns).where(eq(paperBotRuns.runKey, input.runKey)).limit(1))[0]; if (!run) throw new Error("Paper bot run could not be created"); return { run, created: true }; }
+export async function completePaperBotRun(input: { id: number; status: "hold" | "ordered" | "risk_blocked" | "error"; decision?: unknown; error?: string; configId: number }) { const db = await getDb(); if (!db) throw new Error("Database unavailable"); await db.update(paperBotRuns).set({ status: input.status, decision: input.decision ? JSON.stringify(input.decision) : undefined, error: input.error, completedAt: new Date() }).where(eq(paperBotRuns.id, input.id)); await db.update(paperBotConfigs).set({ lastRunAt: new Date(), lastRunStatus: input.status, lastRunError: input.error ?? null, updatedAt: new Date() }).where(eq(paperBotConfigs.id, input.configId)); }
 
 // TODO: add feature queries here as your schema grows.
