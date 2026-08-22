@@ -539,3 +539,10 @@
 - [x] Inspect existing DeepSeek decision and 1m/5m/15m context contracts for safe forecast reuse.
 - [x] Add a clearly experimental next-candle direction probability display with uncertainty, freshness, and no-execution labels.
 - [x] Add regression coverage, validate, and publish the paper-only forecast display.
+
+# Paper-only strategy diagnostics and modes
+
+- [x] Audit the existing repeated-hold reasons, three-timeframe confirmation, and neutral threshold behavior.
+- [x] Distinguish conflict, low-volatility, and risk-guard hold reasons in persisted paper-bot activity.
+- [x] Add selectable faster momentum confirmation and optional range-reversion paper simulation modes while retaining hard risk controls.
+- [x] Add deterministic strategy-mode coverage, validate, and publish the refined paper-only bot controls.

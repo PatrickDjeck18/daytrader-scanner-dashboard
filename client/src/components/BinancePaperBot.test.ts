@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { getPaperBotDisplayState, getScalpObservationDisplayState } from "./BinancePaperBot";
+import { getPaperBotDisplayState, getPaperBotRunSummary, getScalpObservationDisplayState } from "./BinancePaperBot";
 
 describe("BinancePaperBot display state", () => {
   it("labels a new account as ready, an enabled config as scheduled, and historical activity as paused", () => {
@@ -13,5 +13,11 @@ describe("BinancePaperBot display state", () => {
     expect(getScalpObservationDisplayState(undefined)).toBe("unavailable");
     expect(getScalpObservationDisplayState({ availability: "live", oneMinute: { bars: 40 }, fiveMinute: { bars: 40 }, fifteenMinute: { bars: 40 } })).toBe("live");
     expect(getScalpObservationDisplayState({ availability: "live", oneMinute: { bars: 40 }, fiveMinute: { bars: 0 }, fifteenMinute: { bars: 40 } })).toBe("unavailable");
+  });
+
+  it("labels persisted hold diagnostics separately from generic run errors", () => {
+    const detail = getPaperBotRunSummary({ status: "hold", decision: JSON.stringify({ holdCategory: "timeframe_conflict", reason: "1m is positive while 5m is negative" }) });
+    expect(detail).toContain("Timeframes conflict");
+    expect(detail).toContain("1m is positive");
   });
 });

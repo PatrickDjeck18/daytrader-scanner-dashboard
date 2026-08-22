@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { assessScalpingDecision, buildRiskManagedPaperOrder, constrainDecisionToConfiguredSymbols, isDailyLossStopped, parseDeepSeekDecisionContent, requestDeepSeekDecision, toUtcDateKey } from "./paper-bot";
+import { assessFastMomentumDecision, assessRangeReversionDecision, assessScalpingDecision, attachHoldDiagnostic, buildRiskManagedPaperOrder, constrainDecisionToConfiguredSymbols, deriveHoldCategory, isDailyLossStopped, parseDeepSeekDecisionContent, requestDeepSeekDecision, toUtcDateKey } from "./paper-bot";
 
 const account = { equity: 10_000, buyingPower: 10_000, dailyStartEquity: 10_000, positions: [] };
 describe("Binance paper bot risk controls", () => {
@@ -37,5 +37,22 @@ describe("Binance paper bot risk controls", () => {
     expect(assessScalpingDecision({ decision, markPrice: 100, context: { ...context, fiveMinute: { bars: 40, changePct: -.1 } } }).allowed).toBe(false);
     expect(assessScalpingDecision({ decision: { ...decision, stopPrice: 98 }, markPrice: 100, context }).allowed).toBe(false);
     expect(assessScalpingDecision({ decision: { ...decision, targetPrice: 100.2 }, markPrice: 100, context }).allowed).toBe(false);
+  });
+  it("separates conflict and low-volatility holds while allowing faster two-of-three confirmation only in Fast Momentum mode", () => {
+    const conflict = { oneMinute: { bars: 40, changePct: .12 }, fiveMinute: { bars: 40, changePct: -.08 }, fifteenMinute: { bars: 40, changePct: .15 } };
+    const quiet = { oneMinute: { bars: 40, changePct: .01 }, fiveMinute: { bars: 40, changePct: -.01 }, fifteenMinute: { bars: 40, changePct: .02 } };
+    const decision = { action: "buy" as const, symbol: "BTCUSDT", confidence: .8, stopPrice: 99.7, targetPrice: 100.5, reason: "paper strategy" };
+    expect(deriveHoldCategory(conflict)).toBe("timeframe_conflict");
+    expect(deriveHoldCategory(quiet)).toBe("low_volatility");
+    expect(attachHoldDiagnostic({ action: "hold", symbol: "BTCUSDT", confidence: 0, stopPrice: null, targetPrice: null, reason: "wait" }, quiet).holdCategory).toBe("low_volatility");
+    expect(assessScalpingDecision({ decision, markPrice: 100, context: conflict }).allowed).toBe(false);
+    expect(assessFastMomentumDecision({ decision, markPrice: 100, context: conflict }).allowed).toBe(true);
+  });
+  it("keeps Range Reversion paper-only and requires a contained higher-timeframe range plus a meaningful one-minute pullback", () => {
+    const decision = { action: "buy" as const, symbol: "BTCUSDT", confidence: .8, stopPrice: 99.7, targetPrice: 100.5, reason: "range paper setup" };
+    const range = { oneMinute: { bars: 40, changePct: -.12 }, fiveMinute: { bars: 40, changePct: .08 }, fifteenMinute: { bars: 40, changePct: -.1 } };
+    expect(assessRangeReversionDecision({ decision, markPrice: 100, context: range }).allowed).toBe(true);
+    expect(assessRangeReversionDecision({ decision, markPrice: 100, context: { ...range, oneMinute: { bars: 40, changePct: .01 } } }).allowed).toBe(false);
+    expect(assessRangeReversionDecision({ decision, markPrice: 100, context: { ...range, fifteenMinute: { bars: 40, changePct: 1 } } }).allowed).toBe(false);
   });
 });
