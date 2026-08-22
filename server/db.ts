@@ -1,15 +1,22 @@
 import { and, eq } from "drizzle-orm";
-import { drizzle } from "drizzle-orm/mysql2";
+import { drizzle } from "drizzle-orm/node-postgres";
+import { lookup } from "node:dns/promises";
+import { Pool } from "pg";
 import { InsertUser, users, watchlists, watchlistItems, scannerPresets, alertRules, workspaceLayouts, paperOrders, backtestRuns, auditEvents, providerHealth } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
 let _db: ReturnType<typeof drizzle> | null = null;
+let _pool: Pool | null = null;
 
 // Lazily create the drizzle instance so local tooling can run without a DB.
 export async function getDb() {
-  if (!_db && process.env.DATABASE_URL) {
+  const connectionString = process.env.SUPABASE_DATABASE_URL ?? process.env.DATABASE_URL;
+  if (!_db && connectionString) {
     try {
-      _db = drizzle(process.env.DATABASE_URL);
+      const parsed = new URL(connectionString);
+      const resolved = await lookup(parsed.hostname, { family: 4 });
+      _pool = new Pool({ connectionString, host: resolved.address, ssl: { rejectUnauthorized: false } });
+      _db = drizzle({ client: _pool });
     } catch (error) {
       console.warn("[Database] Failed to connect:", error);
       _db = null;
@@ -68,9 +75,7 @@ export async function upsertUser(user: InsertUser): Promise<void> {
       updateSet.lastSignedIn = new Date();
     }
 
-    await db.insert(users).values(values).onDuplicateKeyUpdate({
-      set: updateSet,
-    });
+    await db.insert(users).values(values).onConflictDoUpdate({ target: users.openId, set: updateSet });
   } catch (error) {
     console.error("[Database] Failed to upsert user:", error);
     throw error;
@@ -108,7 +113,7 @@ export function simulatePaperFill(input: { side: "buy" | "sell"; orderType: "mar
 export async function createPaperOrder(userId: number, input: { idempotencyKey: string; symbol: string; side: "buy" | "sell"; quantity: string; orderType: "market" | "limit"; limitPrice?: string; markPrice?: number }) { const db = await getDb(); if (!db) throw new Error("Database unavailable"); const existing = await db.select().from(paperOrders).where(and(eq(paperOrders.userId, userId), eq(paperOrders.idempotencyKey, input.idempotencyKey))).limit(1); if (existing[0]) return existing[0]; const fill = simulatePaperFill(input); const fillPrice = fill.fillPrice === undefined ? undefined : String(fill.fillPrice); const status = fill.status; await db.insert(paperOrders).values({ userId, idempotencyKey: input.idempotencyKey, symbol: input.symbol, side: input.side, quantity: input.quantity, orderType: input.orderType, limitPrice: input.limitPrice, fillPrice, status }); const created = await db.select().from(paperOrders).where(and(eq(paperOrders.userId, userId), eq(paperOrders.idempotencyKey, input.idempotencyKey))).limit(1); return created[0] ?? true; }
 export async function listPaperOrders(userId: number) { const db = await getDb(); if (!db) return []; return db.select().from(paperOrders).where(eq(paperOrders.userId, userId)); }
 export async function recordAuditEvent(input: { userId?: number; action: string; resource: string; metadata?: Record<string, unknown>; requestId?: string }) { const db = await getDb(); if (!db) return false; await db.insert(auditEvents).values({ userId: input.userId, action: input.action, resource: input.resource, metadata: JSON.stringify(input.metadata ?? {}), requestId: input.requestId }); return true; }
-export async function updateProviderHealth(input: { provider: string; status: "healthy" | "degraded" | "offline"; latencyMs?: number; error?: string }) { const db = await getDb(); if (!db) return false; const now = new Date(); await db.insert(providerHealth).values({ provider: input.provider, status: input.status, latencyMs: input.latencyMs, lastSuccessAt: input.status === "healthy" ? now : undefined, lastFailureAt: input.status === "healthy" ? undefined : now, lastError: input.error }).onDuplicateKeyUpdate({ set: { status: input.status, latencyMs: input.latencyMs, lastSuccessAt: input.status === "healthy" ? now : undefined, lastFailureAt: input.status === "healthy" ? undefined : now, lastError: input.error } }); return true; }
+export async function updateProviderHealth(input: { provider: string; status: "healthy" | "degraded" | "offline"; latencyMs?: number; error?: string }) { const db = await getDb(); if (!db) return false; const now = new Date(); await db.insert(providerHealth).values({ provider: input.provider, status: input.status, latencyMs: input.latencyMs, lastSuccessAt: input.status === "healthy" ? now : undefined, lastFailureAt: input.status === "healthy" ? undefined : now, lastError: input.error }).onConflictDoUpdate({ target: providerHealth.provider, set: { status: input.status, latencyMs: input.latencyMs, lastSuccessAt: input.status === "healthy" ? now : undefined, lastFailureAt: input.status === "healthy" ? undefined : now, lastError: input.error } }); return true; }
 export async function getProviderHealth(provider: string) { const db = await getDb(); if (!db) return undefined; const rows = await db.select().from(providerHealth).where(eq(providerHealth.provider, provider)).limit(1); return rows[0]; }
 export function calculatePaperPnl(orders: Array<{ symbol: string; side: "buy" | "sell"; quantity: string | number; fillPrice: string | number | null; status?: "submitted" | "filled" | "cancelled" }>, prices: Record<string, number> = {}) { const state = new Map<string, { quantity: number; averageCost: number }>(); let realizedPnl = 0; for (const order of orders) { if (order.status && order.status !== "filled") continue; const quantity = Number(order.quantity); const price = Number(order.fillPrice ?? 0); const current = state.get(order.symbol) ?? { quantity: 0, averageCost: 0 }; if (order.side === "buy") { const totalCost = current.quantity * current.averageCost + quantity * price; current.quantity += quantity; current.averageCost = current.quantity ? totalCost / current.quantity : 0; } else { const closed = Math.min(quantity, Math.max(0, current.quantity)); realizedPnl += closed * (price - current.averageCost); current.quantity -= quantity; if (current.quantity <= 0) current.averageCost = 0; } state.set(order.symbol, current); } const positions = Array.from(state.entries()).filter(([, position]) => position.quantity !== 0).map(([symbol, position]) => ({ symbol, quantity: position.quantity, averageCost: position.averageCost, marketPrice: prices[symbol] ?? position.averageCost, unrealizedPnl: position.quantity * ((prices[symbol] ?? position.averageCost) - position.averageCost) })); const unrealizedPnl = positions.reduce((sum, position) => sum + position.unrealizedPnl, 0); return { realizedPnl, unrealizedPnl, totalPnl: realizedPnl + unrealizedPnl, positions }; }
 export async function paperAccountSummary(userId: number, prices: Record<string, number> = {}) { const orders = await listPaperOrders(userId); const filledOrders = orders.filter(order => order.status === "filled"); const used = filledOrders.reduce((sum, order) => sum + (order.side === "buy" ? 1 : -1) * Number(order.quantity) * Number(order.fillPrice ?? 0), 0); return { mode: "paper" as const, buyingPower: 100000 - Math.max(0, used), usedCapital: used, ...calculatePaperPnl(orders, prices) }; }

@@ -328,3 +328,15 @@
 - [x] Preserve row selection, scanner switching, refresh, watchlist, alert-history, news-sound, paper-only, and no-fake-data behavior.
 - [x] Add regression coverage for visual-state helpers and run TypeScript, full Vitest, build, and responsive visual verification.
 - [x] Save and publish the verified visual hierarchy checkpoint.
+
+# Supabase database setup
+
+- [x] Inspect the connected Supabase project and verify available database access.
+- [x] Convert the current Drizzle schema from MySQL to PostgreSQL-compatible definitions.
+- [x] Configure Drizzle and server database access for Supabase without exposing secrets.
+- [x] Apply the schema and migrate existing rows if the source database is accessible.
+- [x] Add database connectivity and protected-flow regression coverage.
+- [x] Run TypeScript, full Vitest, production build, and database verification.
+- [x] Save and publish the verified Supabase database checkpoint.
+
+- [x] Use the explicitly selected Supabase project `nafzdjyehhuexjsipaeb` (`https://nafzdjyehhuexjsipaeb.supabase.co`) as the migration target instead of the previously detected project.
