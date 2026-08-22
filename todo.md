@@ -553,3 +553,9 @@
 - [x] Add range-regime diagnostics, separate model/parsing holds from market holds, and surface confidence distribution in paper-only activity.
 - [x] Evaluate each configured pair independently per scheduled cycle while preserving per-pair idempotency and all hard risk controls.
 - [x] Add deterministic coverage, validate, and publish the decision-quality and coverage refinement.
+
+# GitHub export
+
+- [x] Inspect the connected GitHub destination and choose the repository export target.
+- [x] Confirm the repository creation or update operation before pushing project code externally.
+- [x] Export the current published project source to the confirmed GitHub repository and report the result.
