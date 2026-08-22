@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { normalizeBinanceAggregateTrades, normalizeBinanceRestKlines, normalizeBinanceRestTicker } from "./binance";
+import { normalizeBinanceAggregateTrades, normalizeBinanceMarketTickers, normalizeBinanceRestKlines, normalizeBinanceRestTicker } from "./binance";
 
 describe("Binance public REST normalization", () => {
   it("maps a 24-hour ticker from a public venue without equity-only fields", () => {
@@ -15,5 +15,15 @@ describe("Binance public REST normalization", () => {
 
   it("maps provider aggregate trades and rejects incomplete trade payloads", () => {
     expect(normalizeBinanceAggregateTrades([{ a: 8, p: "200", q: "2", T: 500, m: false }, { a: 9, p: "bad", q: "2", T: 501 }], "SOLUSDT")).toEqual([{ id: "8", symbol: "SOLUSDT", price: 200, quantity: 2, timestamp: 500, buyerIsMaker: false }]);
+  });
+
+  it("limits liquid public USDT pairs by provider-reported quote volume without inventing a market universe", () => {
+    const tickers = normalizeBinanceMarketTickers([
+      { symbol: "ETHUSDT", lastPrice: "3000", quoteVolume: "200" },
+      { symbol: "BTCUSDT", lastPrice: "65000", quoteVolume: "900" },
+      { symbol: "BTCFDUSD", lastPrice: "65000", quoteVolume: "9999" },
+      { symbol: "BADUSDT", lastPrice: "not-a-price", quoteVolume: "5000" },
+    ], "global-spot", 2);
+    expect(tickers.map(item => item.symbol)).toEqual(["BTCUSDT", "ETHUSDT"]);
   });
 });

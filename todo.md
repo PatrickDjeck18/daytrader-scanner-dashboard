@@ -371,10 +371,10 @@
 
 # Live chart and live news enablement
 
-- [ ] Verify the current Massive and Finnhub entitlement limits for live U.S. chart bars and news.
-- [ ] Map the existing dashboard provider adapters to the viable live-data integration paths.
-- [ ] Present the required provider entitlement and secure configuration steps without enabling live orders.
-- [ ] Configure the user-selected entitlement and validate provider-backed live chart/news behavior if the required credentials are available.
+- [x] Verify the current Massive and Finnhub entitlement limits for live U.S. chart bars and news.
+- [x] Map the existing dashboard provider adapters to the viable live-data integration paths.
+- [x] Present the required provider entitlement and secure configuration steps without enabling live orders.
+- [x] Deferred by the current scope: configure a selected U.S. equities provider entitlement and validate live chart/news behavior only after the user chooses a Massive/Finnhub plan path.
 
 # Binance crypto data integration
 
@@ -387,3 +387,26 @@
 - [x] Surface venue, market type, freshness, regional availability, and provider errors without using generated market values.
 - [x] Add scoped starter instruments and input validation appropriate to each Binance market.
 - [x] Implement live Binance updates only while an active dashboard browser session is connected; do not add an always-on relay or background alert service.
+
+# Dedicated Binance account dashboard
+
+- [x] Deferred by the current scope: a private read-only Binance account dashboard requires user API credentials, which the user has chosen not to use now.
+- [x] Verified and documented Binance account-read permissions, endpoint scopes, and regional product considerations from official documentation.
+- [x] Deferred by the current scope: request an Enable Reading-only Binance key only if the user later chooses account portfolio visibility.
+- [x] Deferred by the current scope: do not build private balance or position views without an approved server-only read key.
+- [x] Retained public live market data, no-fake-data unavailable states, and paper-only simulation without account trade, transfer, balance, or credential features.
+- [x] Added public-data normalization coverage and retained existing paper-only safety tests; private-API permission tests are deferred until a read-only account integration is approved.
+
+# Live Binance execution request boundary
+
+- [x] Preserve the permanent paper-only execution boundary: do not add Spot/Margin, Futures, or Prediction Trading order routes to this project.
+- [x] Keep Binance API credentials out of Supabase tables, browser storage, logs, and source code; use managed server-side secrets only for approved read-only access.
+- [x] Deferred by the current scope: the user requested no Binance API connection, so no credentials will be requested.
+
+# Dedicated public-data Binance dashboard
+
+- [x] Build a dedicated Binance dashboard view that operates with public market data only and requires no user API credentials.
+- [x] Add Global Spot, USDⓈ-M Futures, and Binance.US Spot market switching with explicit venue and availability labels.
+- [x] Add public-market movers, liquid-pair discovery, market statistics, chart and aggregate-trade context without fabricated values.
+- [x] Add a clearly labelled paper-only crypto trade-planning workspace; do not add any live order, account, transfer, balance, or credential feature.
+- [x] Add deterministic tests, responsive verification, and explicit no-account/no-live-execution safeguards.

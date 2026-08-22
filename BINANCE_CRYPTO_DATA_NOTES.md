@@ -18,6 +18,10 @@ The selected approach connects from the active dashboard browser directly to pub
 
 No stream is a substitute for a managed order book. The module will not display a depth ladder because accurate depth reconstruction requires snapshot/reconciliation logic that is outside this initial, read-only quote/chart/tape scope.
 
+## Dedicated dashboard verification
+
+The `/binance` route was verified in-browser with no account API configured. Global Spot returned a real BTCUSDT quote, 24-hour statistics, current provider candle, and aggregate trade prints through the public browser stream. The public market radar also returned a bounded, provider-derived USDT liquid-pair set ranked by reported quote volume. The route visibly states that there is no account connection and that order, transfer, withdrawal, leverage, margin, and prediction-trading controls are not present. The paper planning calculator performs local sizing only and cannot submit any order.
+
 ## Sources
 
 1. [Binance Market Data Only URLs](https://developers.binance.com/en/docs/products/spot/faqs/market_data_only)

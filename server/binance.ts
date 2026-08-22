@@ -21,6 +21,15 @@ export function normalizeBinanceRestTicker(payload: BinanceRestTicker, market: C
   return { market, symbol, availability: "live", price, bid: finiteNumber(payload.bidPrice), ask: finiteNumber(payload.askPrice), changePct: finiteNumber(payload.priceChangePercent), high: finiteNumber(payload.highPrice), low: finiteNumber(payload.lowPrice), baseVolume: finiteNumber(payload.volume), quoteVolume: finiteNumber(payload.quoteVolume), weightedAverage: finiteNumber(payload.weightedAvgPrice), lastUpdated: finiteNumber(payload.closeTime) ?? Date.now() };
 }
 
+export function normalizeBinanceMarketTickers(payload: unknown, market: CryptoMarket, limit = 12): CryptoQuote[] {
+  if (!Array.isArray(payload)) return [];
+  return payload.flatMap((item): CryptoQuote[] => {
+    const ticker = item as BinanceRestTicker;
+    const quote = normalizeBinanceRestTicker(ticker, market, ticker.symbol ?? "");
+    return quote && quote.symbol.endsWith("USDT") && (quote.quoteVolume ?? 0) > 0 ? [quote] : [];
+  }).sort((left, right) => (right.quoteVolume ?? 0) - (left.quoteVolume ?? 0)).slice(0, Math.max(1, Math.min(24, limit)));
+}
+
 export function normalizeBinanceRestKlines(payload: unknown, symbol: string): CryptoBar[] {
   if (!Array.isArray(payload)) return [];
   const normalizedSymbol = validSymbol(symbol);
@@ -57,6 +66,17 @@ export async function fetchBinanceCryptoQuote(market: CryptoMarket, symbol: stri
     return normalizeBinanceRestTicker(await response.json() as BinanceRestTicker, market, normalizedSymbol) ?? unavailableCryptoQuote(market, normalizedSymbol, `${config.label} returned no current quote`);
   } catch (error) {
     return unavailableCryptoQuote(market, normalizedSymbol, error instanceof Error ? error.message : `${config.label} ticker request failed`);
+  }
+}
+
+export async function fetchBinanceCryptoTickers(market: CryptoMarket, limit = 12): Promise<CryptoQuote[]> {
+  const config = configs[market];
+  try {
+    const response = await fetchWithTimeout(endpoint(market, config.tickerPath, {}), {}, 8_000);
+    if (!response.ok) return [];
+    return normalizeBinanceMarketTickers(await response.json(), market, limit);
+  } catch {
+    return [];
   }
 }
 
