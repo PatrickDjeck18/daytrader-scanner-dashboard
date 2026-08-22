@@ -94,6 +94,26 @@ export async function getUserByOpenId(openId: string) {
   return result.length > 0 ? result[0] : undefined;
 }
 
+export async function upsertSupabaseAuthUser(input: { authId: string; email?: string | null; name?: string | null }) {
+  const db = await getDb();
+  if (!db) throw new Error("Database unavailable");
+  const existingById = await db.select().from(users).where(eq(users.openId, input.authId)).limit(1);
+  if (existingById[0]) {
+    await db.update(users).set({ email: input.email ?? existingById[0].email, name: input.name ?? existingById[0].name, loginMethod: "supabase", lastSignedIn: new Date() }).where(eq(users.id, existingById[0].id));
+    return { ...existingById[0], email: input.email ?? existingById[0].email, name: input.name ?? existingById[0].name, loginMethod: "supabase", lastSignedIn: new Date() };
+  }
+  const existingByEmail = input.email ? await db.select().from(users).where(eq(users.email, input.email)).limit(1) : [];
+  if (existingByEmail[0]) {
+    const email = input.email ?? existingByEmail[0].email;
+    await db.update(users).set({ openId: input.authId, email, name: input.name ?? existingByEmail[0].name, loginMethod: "supabase", lastSignedIn: new Date() }).where(eq(users.id, existingByEmail[0].id));
+    return { ...existingByEmail[0], openId: input.authId, email, name: input.name ?? existingByEmail[0].name, loginMethod: "supabase", lastSignedIn: new Date() };
+  }
+  await db.insert(users).values({ openId: input.authId, email: input.email ?? null, name: input.name ?? null, loginMethod: "supabase", lastSignedIn: new Date() });
+  const created = await getUserByOpenId(input.authId);
+  if (!created) throw new Error("Supabase user record could not be created");
+  return created;
+}
+
 export async function deleteWatchlist(userId: number, id: number) { const db = await getDb(); if (!db) throw new Error("Database unavailable"); await db.delete(watchlists).where(and(eq(watchlists.id, id), eq(watchlists.userId, userId))); return true; }
 export async function listWatchlistItems(userId: number, watchlistId: number) { const db = await getDb(); if (!db) return []; const owned = await db.select({ id: watchlists.id }).from(watchlists).where(and(eq(watchlists.id, watchlistId), eq(watchlists.userId, userId))); if (!owned.length) throw new Error("Watchlist not found"); return db.select().from(watchlistItems).where(eq(watchlistItems.watchlistId, watchlistId)); }
 export async function addWatchlistItem(userId: number, watchlistId: number, symbol: string) { const db = await getDb(); if (!db) throw new Error("Database unavailable"); const owned = await db.select({ id: watchlists.id }).from(watchlists).where(and(eq(watchlists.id, watchlistId), eq(watchlists.userId, userId))); if (!owned.length) throw new Error("Watchlist not found"); await db.insert(watchlistItems).values({ watchlistId, symbol, sortOrder: 0 }); return true; }

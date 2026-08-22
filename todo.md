@@ -445,3 +445,15 @@
 - [x] Deferred by the selected no-account scope: do not implement an authenticated Binance Announcements client or introduce credentials.
 - [x] Superseded by the public RSS wire: provider-returned CoinDesk title, publication time, source, and canonical link now render in the Binance-only news panel.
 - [x] Validated the public no-account route: no Binance trading/account code or secrets were added, and RSS failures return a truthful unavailable state.
+
+# Supabase authentication and protected dashboards
+
+- [x] Audit the existing Manus OAuth session, Supabase PostgreSQL schema, user identifiers, and every persisted dashboard data flow before migration.
+- [x] Configure Supabase Auth client credentials and authorized redirect URLs using managed environment variables only.
+- [x] Create dedicated Supabase sign-in, sign-up, password-reset, and signed-out screens.
+- [x] Require an active Supabase session before access to the U.S. Equities or Binance Crypto dashboards.
+- [x] Reconcile dashboard ownership through Supabase Auth UUID-to-application-user mapping so workspace layouts, watchlists, presets, alerts, paper orders, backtests, and preferences remain user-isolated in Supabase.
+- [x] Add row-level access protections and server-side session verification without exposing service credentials to the browser.
+- [x] Add deterministic authentication and ownership-isolation tests, then verify desktop and mobile protected routes.
+- [x] Resolve Supabase Auth route and user-record TypeScript errors before validating the protected dashboard flow.
+- [x] Apply and verify Supabase Auth row-level security policies through the connected PostgreSQL project after the legacy TiDB schema tool rejected PostgreSQL-only policy syntax.

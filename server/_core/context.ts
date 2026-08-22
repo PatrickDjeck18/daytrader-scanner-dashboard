@@ -1,7 +1,7 @@
 import type { CreateExpressContextOptions } from "@trpc/server/adapters/express";
 import type { User } from "../../drizzle/schema";
-import { sdk } from "./sdk";
 import { randomUUID } from "node:crypto";
+import { authenticateSupabaseRequest } from "../supabase-auth";
 
 export type TrpcContext = {
   req: CreateExpressContextOptions["req"];
@@ -14,12 +14,8 @@ export async function createContext(
 ): Promise<TrpcContext> {
   let user: User | null = null;
 
-  try {
-    user = await sdk.authenticateRequest(opts.req);
-  } catch (error) {
-    // Authentication is optional for public procedures.
-    user = null;
-  }
+  try { user = await authenticateSupabaseRequest(opts.req.headers); }
+  catch { user = null; }
 
   const requestId = typeof opts.req.headers["x-request-id"] === "string" && opts.req.headers["x-request-id"].length <= 80 ? opts.req.headers["x-request-id"] : randomUUID();
   opts.res.setHeader("x-request-id", requestId);
