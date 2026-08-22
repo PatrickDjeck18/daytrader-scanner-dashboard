@@ -279,3 +279,13 @@
 - [x] Keep final verification free of external network calls and database seeding.
 - [x] Keep all previous production-hardening regressions passing.
 - [x] Keep final delivery after checkpoint save only.
+
+# Price direction indicators
+
+- [x] Add green upward indicators for positive price movement.
+- [x] Add red downward indicators for negative price movement.
+- [x] Preserve neutral styling for unchanged or unavailable values.
+- [x] Apply direction indicators consistently to scanner rows, selected-symbol workspace, and watchlist.
+- [x] Add regression coverage for positive, negative, neutral, and unavailable direction states.
+- [x] Run TypeScript, Vitest, and browser visual verification.
+- [x] Save and publish the updated checkpoint.
