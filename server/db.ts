@@ -161,6 +161,31 @@ export function calculateBinancePaperPnl(orders: Array<{ symbol: string; side: "
 }
 
 export async function listBinancePaperOrders(userId: number) { const db = await getDb(); if (!db) return []; return db.select().from(binancePaperOrders).where(eq(binancePaperOrders.userId, userId)); }
+export type LearningLedgerOrder = { id: number; symbol: string; side: "buy" | "sell"; quantity: string | number; fillPrice: string | number; source: string; createdAt: Date };
+export function buildDeepSeekLearningLedger(input: LearningLedgerOrder[]) {
+  const orders = input.filter(order => order.source === "deepseek-learning-paper-bot").slice().sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+  const openLots = new Map<string, Array<{ orderId: number; openedAt: Date; quantity: number; remaining: number; fillPrice: number }>>();
+  const realizedByOrder = new Map<number, number>();
+  const closedTrades: Array<{ symbol: string; entryOrderId: number; exitOrderId: number; openedAt: Date; closedAt: Date; quantity: number; entryPrice: number; exitPrice: number; entryAmount: number; exitAmount: number; realizedPnl: number; outcome: "win" | "loss" | "flat" }> = [];
+  for (const order of orders) {
+    const quantity = asNumber(order.quantity); const fillPrice = asNumber(order.fillPrice);
+    if (!Number.isFinite(quantity) || quantity <= 0 || !Number.isFinite(fillPrice) || fillPrice <= 0) continue;
+    const lots = openLots.get(order.symbol) ?? [];
+    if (order.side === "buy") { lots.push({ orderId: order.id, openedAt: new Date(order.createdAt), quantity, remaining: quantity, fillPrice }); openLots.set(order.symbol, lots); continue; }
+    let remaining = quantity; let realized = 0;
+    while (remaining > 0 && lots.length) {
+      const lot = lots[0]; const closedQuantity = Math.min(lot.remaining, remaining); const pnl = closedQuantity * (fillPrice - lot.fillPrice); realized += pnl;
+      closedTrades.push({ symbol: order.symbol, entryOrderId: lot.orderId, exitOrderId: order.id, openedAt: lot.openedAt, closedAt: new Date(order.createdAt), quantity: closedQuantity, entryPrice: lot.fillPrice, exitPrice: fillPrice, entryAmount: closedQuantity * lot.fillPrice, exitAmount: closedQuantity * fillPrice, realizedPnl: pnl, outcome: pnl > .00000001 ? "win" : pnl < -.00000001 ? "loss" : "flat" });
+      lot.remaining -= closedQuantity; remaining -= closedQuantity; if (lot.remaining <= .00000001) lots.shift();
+    }
+    realizedByOrder.set(order.id, realized);
+  }
+  const openPositions = Array.from(openLots.entries()).flatMap(([symbol, lots]) => lots.filter(lot => lot.remaining > .00000001).map(lot => ({ symbol, entryOrderId: lot.orderId, openedAt: lot.openedAt, quantity: lot.remaining, entryPrice: lot.fillPrice, entryAmount: lot.remaining * lot.fillPrice })));
+  const orderRows = orders.map(order => { const quantity = asNumber(order.quantity); const fillPrice = asNumber(order.fillPrice); const realizedPnl = realizedByOrder.get(order.id) ?? null; const isOpenEntry = order.side === "buy" && openPositions.some(position => position.entryOrderId === order.id); return { ...order, quantity, fillPrice, amount: quantity * fillPrice, realizedPnl, status: order.side === "sell" ? "exit" as const : isOpenEntry ? "open" as const : "entry" as const }; });
+  const realizedPnl = closedTrades.reduce((sum, trade) => sum + trade.realizedPnl, 0);
+  return { orders: orderRows, closedTrades, openPositions, summary: { orders: orders.length, closedTrades: closedTrades.length, wins: closedTrades.filter(trade => trade.outcome === "win").length, losses: closedTrades.filter(trade => trade.outcome === "loss").length, flats: closedTrades.filter(trade => trade.outcome === "flat").length, realizedPnl, winRate: closedTrades.length ? closedTrades.filter(trade => trade.outcome === "win").length / closedTrades.length : null } };
+}
+export async function getDeepSeekLearningLedger(userId: number) { return buildDeepSeekLearningLedger(await listBinancePaperOrders(userId) as LearningLedgerOrder[]); }
 export async function binancePaperAccountSummary(userId: number, prices: Record<string, number> = {}) {
   const account = await ensureBinancePaperAccount(userId); const orders = await listBinancePaperOrders(userId); const pnl = calculateBinancePaperPnl(orders, prices); const initialCapital = asNumber(account.initialCapital); const equity = initialCapital + pnl.realizedPnl + pnl.unrealizedPnl; const currentDay = todayKey(); let dailyStartEquity = asNumber(account.dailyStartEquity);
   if (account.dailyAnchor !== currentDay) { dailyStartEquity = equity; const db = await getDb(); if (db) await db.update(binancePaperAccounts).set({ dailyAnchor: currentDay, dailyStartEquity: String(equity), updatedAt: new Date() }).where(eq(binancePaperAccounts.id, account.id)); }

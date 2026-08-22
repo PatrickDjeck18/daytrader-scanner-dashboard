@@ -578,3 +578,9 @@
 - [x] Add a visible permissive learning mode that removes discretionary risk/strategy filters while retaining paper-only and execution-integrity checks.
 - [x] Verify a valid simulated order can be created under learning mode without any live Binance interaction.
 - [x] Add regression coverage, validate, and publish the learning-mode repair.
+
+# DeepSeek Learning Mode trade ledger
+
+- [x] Inspect persisted paper-order fields and the current simulation-audit data contract for matching entries and exits.
+- [x] Build a complete authenticated Learning Mode ledger with every simulated order, matched win/loss, amounts, timestamps, and aggregate results.
+- [x] Add deterministic ledger/P&L coverage, validate responsive presentation, and publish the audit expansion.

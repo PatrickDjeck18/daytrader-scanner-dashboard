@@ -8,7 +8,7 @@ import { z } from "zod";
 import type { MarketQuote } from "@shared/scanner";
 import { massiveNews, massiveProvider } from "./massive";
 import { finnhubNews, finnhubProvider, finnhubSymbols } from "./finnhub";
-import { addWatchlistItem, binancePaperAccountSummary, createAlertRule, createBacktestRun, createPaperOrder, createWatchlist, deleteAlertRule, deleteLayout, deletePreset, deleteWatchlist, deleteWatchlistItem, ensurePaperBotConfig, getProviderHealth, listAlertRules, listBacktestRuns, listBinancePaperOrders, listLayouts, listPaperBotRuns, listPaperOrders, listPresets, listWatchlistItems, listWatchlists, paperAccountSummary, saveLayout, savePaperBotConfig, savePreset } from "./db";
+import { addWatchlistItem, binancePaperAccountSummary, createAlertRule, createBacktestRun, createPaperOrder, createWatchlist, deleteAlertRule, deleteLayout, deletePreset, deleteWatchlist, deleteWatchlistItem, ensurePaperBotConfig, getDeepSeekLearningLedger, getProviderHealth, listAlertRules, listBacktestRuns, listBinancePaperOrders, listLayouts, listPaperBotRuns, listPaperOrders, listPresets, listWatchlistItems, listWatchlists, paperAccountSummary, saveLayout, savePaperBotConfig, savePreset } from "./db";
 import { assertPaperOnlyOrder, replayBars, runScannerBacktest } from "./backtest";
 import { checkMassiveFlatFileHealth } from "./massive-flatfiles";
 import { CRYPTO_INTERVALS, CRYPTO_MARKETS, unavailableCryptoQuote } from "@shared/crypto";
@@ -87,7 +87,8 @@ export const appRouter = router({
 
   binancePaper: router({
     account: auditedProtectedProcedure.input(z.object({ prices: z.record(z.string(), z.number()).default({}) })).query(({ ctx, input }) => binancePaperAccountSummary(ctx.user.id, input.prices)),
-    orders: auditedProtectedProcedure.query(({ ctx }) => listBinancePaperOrders(ctx.user.id)),
+    orders: protectedProcedure.query(({ ctx }) => listBinancePaperOrders(ctx.user.id)),
+    learningLedger: protectedProcedure.query(({ ctx }) => getDeepSeekLearningLedger(ctx.user.id)),
     botConfig: auditedProtectedProcedure.query(({ ctx }) => ensurePaperBotConfig(ctx.user.id)),
     botRuns: auditedProtectedProcedure.query(({ ctx }) => listPaperBotRuns(ctx.user.id)),
     saveBotConfig: auditedProtectedProcedure.input(z.object({ symbols: z.array(z.string().regex(/^[A-Z0-9]{5,24}$/)).min(1).max(6), strategy: z.enum(["scalp_momentum", "fast_momentum", "range_reversion", "learning_mode"]).default("scalp_momentum"), scheduleMinutes: z.union([z.literal(1), z.literal(5), z.literal(15)]), riskPct: z.number().positive().max(2), dailyLossStopPct: z.number().positive().max(5), maxOpenPositions: z.number().int().min(1).max(3) })).mutation(({ ctx, input }) => savePaperBotConfig(ctx.user.id, input)),

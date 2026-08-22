@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { getPaperBotDisplayState, getPaperBotQualityStats, getPaperBotRunSummary, getScalpObservationDisplayState } from "./BinancePaperBot";
+import { getPaperBotDisplayState, getPaperBotQualityStats, getPaperBotRunSummary, getScalpObservationDisplayState, matchesLearningLedgerFilter } from "./BinancePaperBot";
 
 describe("BinancePaperBot display state", () => {
   it("labels a new account as ready, an enabled config as scheduled, and historical activity as paused", () => {
@@ -33,5 +33,17 @@ describe("BinancePaperBot display state", () => {
 
   it("recognizes Learning Mode as a persisted paper strategy", () => {
     expect(getPaperBotDisplayState({ enabled: 1, orders: [] })).toBe("scheduled");
+  });
+
+  it("filters the full Learning Mode ledger without classifying an open entry as a win or loss", () => {
+    const open = { status: "open", realizedPnl: null };
+    const win = { status: "exit", realizedPnl: 12.5 };
+    const loss = { status: "exit", realizedPnl: -3.25 };
+    expect(matchesLearningLedgerFilter(open, "open")).toBe(true);
+    expect(matchesLearningLedgerFilter(open, "wins")).toBe(false);
+    expect(matchesLearningLedgerFilter(open, "losses")).toBe(false);
+    expect(matchesLearningLedgerFilter(win, "wins")).toBe(true);
+    expect(matchesLearningLedgerFilter(loss, "losses")).toBe(true);
+    expect(matchesLearningLedgerFilter(loss, "all")).toBe(true);
   });
 });
