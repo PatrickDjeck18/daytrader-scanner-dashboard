@@ -299,3 +299,12 @@
 - [x] Add regression tests for refresh and watchlist-add behavior.
 - [x] Run TypeScript, full Vitest suite, production build, and browser interaction verification.
 - [x] Save and publish the repaired checkpoint.
+
+# Alert stream history repair
+
+- [x] Trace the alert history button and alert state behavior.
+- [x] Implement an accessible alert history view with close and empty states.
+- [x] Preserve existing alert entries and read-state behavior.
+- [x] Add regression coverage for opening and closing alert history.
+- [x] Run TypeScript, full Vitest suite, production build, and browser verification.
+- [x] Save and publish the alert history repair checkpoint.

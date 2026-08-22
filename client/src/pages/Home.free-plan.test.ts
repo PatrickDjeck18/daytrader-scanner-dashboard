@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { filterDirectorySymbols, getFreePlanUiState, getQuoteRequestSymbols, getNewsItemKey, getPriceDirection, addUniqueWatchlistSymbol, normalizeWatchlistSymbol, getProviderAwareScannerRows, getScannerDataNotice, getVisibleScannerRows, isFreshProviderRateLimit, isProviderAwareScannerEligible, providerQuoteToStock, quoteUniverse, shouldApplyOptionalScannerFilters } from "./Home";
+import { filterDirectorySymbols, getFreePlanUiState, getQuoteRequestSymbols, getNewsItemKey, getPriceDirection, addUniqueWatchlistSymbol, normalizeWatchlistSymbol, getAlertHistoryState, getProviderAwareScannerRows, getScannerDataNotice, getVisibleScannerRows, isFreshProviderRateLimit, isProviderAwareScannerEligible, providerQuoteToStock, quoteUniverse, shouldApplyOptionalScannerFilters } from "./Home";
 
 describe("free-plan dashboard state", () => {
   it("shows the entitlement banner when live snapshots are unavailable", () => {
@@ -40,6 +40,13 @@ describe("free-plan dashboard state", () => {
     const symbols = [{ symbol: "AAPL", description: "Apple Inc." }, { symbol: "AMD", description: "Advanced Micro Devices" }, { symbol: "MSFT", description: "Microsoft Corporation" }];
     expect(filterDirectorySymbols(symbols, "micro")).toEqual([symbols[1], symbols[2]]);
     expect(filterDirectorySymbols(symbols, "", 2)).toHaveLength(2);
+  });
+
+  it("tracks alert history open and empty states", () => {
+    const alert = { id: 1, symbol: "AAPL", title: "Breakout", detail: "Provider alert", tone: "green" as const, time: "09:30:00", read: false };
+    expect(getAlertHistoryState([alert], false)).toBe("closed");
+    expect(getAlertHistoryState([alert], true)).toBe("open");
+    expect(getAlertHistoryState([], true)).toBe("empty");
   });
 
   it("normalizes and safely inserts watchlist symbols", () => {
