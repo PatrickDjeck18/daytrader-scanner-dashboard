@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { getPaperBotDisplayState, getPaperBotQualityStats, getPaperBotRunSummary, getScalpObservationDisplayState, matchesLearningLedgerFilter } from "./BinancePaperBot";
+import { getPaperBotDisplayState, getPaperBotQualityStats, getPaperBotRunSummary, getScalpObservationDisplayState, LEARNING_LEDGER_PAGE_SIZE, matchesLearningLedgerFilter, paginateLearningLedgerRows } from "./BinancePaperBot";
 
 describe("BinancePaperBot display state", () => {
   it("labels a new account as ready, an enabled config as scheduled, and historical activity as paused", () => {
@@ -45,5 +45,14 @@ describe("BinancePaperBot display state", () => {
     expect(matchesLearningLedgerFilter(win, "wins")).toBe(true);
     expect(matchesLearningLedgerFilter(loss, "losses")).toBe(true);
     expect(matchesLearningLedgerFilter(loss, "all")).toBe(true);
+  });
+
+  it("paginates the complete Learning Mode audit in groups of ten and clamps invalid page requests", () => {
+    const orders = Array.from({ length: 23 }, (_, index) => `order-${index + 1}`);
+    expect(LEARNING_LEDGER_PAGE_SIZE).toBe(10);
+    expect(paginateLearningLedgerRows(orders, 1)).toMatchObject({ rows: orders.slice(0, 10), total: 23, totalPages: 3, currentPage: 1, firstItem: 1, lastItem: 10 });
+    expect(paginateLearningLedgerRows(orders, 2)).toMatchObject({ rows: orders.slice(10, 20), currentPage: 2, firstItem: 11, lastItem: 20 });
+    expect(paginateLearningLedgerRows(orders, 99)).toMatchObject({ rows: orders.slice(20), currentPage: 3, firstItem: 21, lastItem: 23 });
+    expect(paginateLearningLedgerRows([], 0)).toMatchObject({ rows: [], total: 0, totalPages: 1, currentPage: 1, firstItem: 0, lastItem: 0 });
   });
 });

@@ -584,3 +584,9 @@
 - [x] Inspect persisted paper-order fields and the current simulation-audit data contract for matching entries and exits.
 - [x] Build a complete authenticated Learning Mode ledger with every simulated order, matched win/loss, amounts, timestamps, and aggregate results.
 - [x] Add deterministic ledger/P&L coverage, validate responsive presentation, and publish the audit expansion.
+
+# Learning Mode audit pagination
+
+- [x] Add stable ten-order pagination to the full DeepSeek Learning Mode simulation audit, including page range and navigation controls.
+- [x] Reset pagination safely when the user changes the audit filter or new order data changes the available page count.
+- [x] Add pagination regression coverage, validate the responsive controls, and publish the audit update.
