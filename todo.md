@@ -317,3 +317,14 @@
 - [x] Add deterministic regression coverage for news notification eligibility and mute behavior.
 - [x] Run TypeScript, full Vitest suite, production build, and browser verification.
 - [x] Save and publish the news notification sound checkpoint.
+
+# Visual hierarchy redesign
+
+- [x] Collapse competing top status pills into a primary feed-health indicator and compact market-status chip with detail on hover.
+- [x] Replace decorative symbol colors with semantic catalyst, unusual-tape, halt, and price-direction meanings plus a legend.
+- [x] Make unsupported RVOL, float, and volume values visibly unavailable and visually recessive rather than numeric placeholders.
+- [x] Increase selected-symbol price hierarchy and use aligned monospace tabular numerals.
+- [x] Replace the historical chart table presentation with an SVG market-pattern chart while retaining timeframe controls and provider-unavailable safeguards.
+- [x] Preserve row selection, scanner switching, refresh, watchlist, alert-history, news-sound, paper-only, and no-fake-data behavior.
+- [x] Add regression coverage for visual-state helpers and run TypeScript, full Vitest, build, and responsive visual verification.
+- [x] Save and publish the verified visual hierarchy checkpoint.

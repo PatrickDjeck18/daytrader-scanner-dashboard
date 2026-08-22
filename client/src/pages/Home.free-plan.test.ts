@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { filterDirectorySymbols, getFreePlanUiState, getQuoteRequestSymbols, getNewsItemKey, getPriceDirection, addUniqueWatchlistSymbol, normalizeWatchlistSymbol, getAlertHistoryState, shouldNotifyProviderNews, getProviderAwareScannerRows, getScannerDataNotice, getVisibleScannerRows, isFreshProviderRateLimit, isProviderAwareScannerEligible, providerQuoteToStock, quoteUniverse, shouldApplyOptionalScannerFilters } from "./Home";
+import { filterDirectorySymbols, getFreePlanUiState, getQuoteRequestSymbols, getNewsItemKey, getPriceDirection, addUniqueWatchlistSymbol, normalizeWatchlistSymbol, getAlertHistoryState, shouldNotifyProviderNews, formatOptionalMetric, getSemanticMarker, getProviderAwareScannerRows, getScannerDataNotice, getVisibleScannerRows, isFreshProviderRateLimit, isProviderAwareScannerEligible, providerQuoteToStock, quoteUniverse, shouldApplyOptionalScannerFilters } from "./Home";
 
 describe("free-plan dashboard state", () => {
   it("shows the entitlement banner when live snapshots are unavailable", () => {
@@ -40,6 +40,15 @@ describe("free-plan dashboard state", () => {
     const symbols = [{ symbol: "AAPL", description: "Apple Inc." }, { symbol: "AMD", description: "Advanced Micro Devices" }, { symbol: "MSFT", description: "Microsoft Corporation" }];
     expect(filterDirectorySymbols(symbols, "micro")).toEqual([symbols[1], symbols[2]]);
     expect(filterDirectorySymbols(symbols, "", 2)).toHaveLength(2);
+  });
+
+  it("uses semantic markers and recedes unsupported metrics", () => {
+    expect(getSemanticMarker("News").className).toBe("marker-news");
+    expect(getSemanticMarker("Provider quote").className).toBe("marker-tape");
+    expect(getSemanticMarker("Halt").className).toBe("marker-halt");
+    expect(formatOptionalMetric(0, "x")).toBe("Unavailable");
+    expect(formatOptionalMetric("—")).toBe("Unavailable");
+    expect(formatOptionalMetric("12.4M")).toBe("12.4M");
   });
 
   it("allows sound only for new provider-backed news", () => {
