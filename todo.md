@@ -508,3 +508,22 @@
 - [x] Add scalping-specific prompt guidance and hard paper-only entry filters while preserving 1% risk and the 3% daily stop.
 - [x] Show the selected strategy and scalping decision rationale in the authenticated paper-bot UI and activity chart.
 - [x] Add deterministic strategy/risk tests, validate, and publish the scalping simulation.
+
+# Live paper-bot chart observation assessment
+
+- [x] Audit scheduled DeepSeek run timestamps, stored chart context, and live chart refresh behavior.
+- [x] Select a supported observation/decision cadence that preserves paper-only risk controls and hosting reliability.
+- [x] Implement the selected current-hosting live-analysis visibility model with deterministic safeguards.
+- [x] Add regression coverage, validate, and publish the decision-cadence update.
+
+# Continuous paper-decision safety assessment
+
+- [x] Assess the request for per-second DeepSeek paper decisions against provider latency, model cost, scheduling, and duplicate-order controls.
+- [x] Define a paper-only continuous observation model that triggers DeepSeek only for qualified new setups.
+- [x] Keep the current hosting mode after the user declined always-on background observation.
+
+# Five-second live context observation
+
+- [x] Add a five-second authenticated public-market context refresh for the displayed 1m, 5m, and 15m scalping view.
+- [x] Clearly distinguish five-second chart observation from the managed paper-order decision cadence.
+- [x] Add regression coverage, validate, and publish the current-hosting five-second context update.
