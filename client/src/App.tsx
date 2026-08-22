@@ -4,6 +4,7 @@ import NotFound from "@/pages/NotFound";
 import { Route, Switch } from "wouter";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { ThemeProvider } from "./contexts/ThemeContext";
+import "./dashboard-switcher.css";
 import BinanceDashboard from "./pages/BinanceDashboard";
 import Home from "./pages/Home";
 

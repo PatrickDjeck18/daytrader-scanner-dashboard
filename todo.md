@@ -410,3 +410,11 @@
 - [x] Add public-market movers, liquid-pair discovery, market statistics, chart and aggregate-trade context without fabricated values.
 - [x] Add a clearly labelled paper-only crypto trade-planning workspace; do not add any live order, account, transfer, balance, or credential feature.
 - [x] Add deterministic tests, responsive verification, and explicit no-account/no-live-execution safeguards.
+
+# Dashboard separation
+
+- [x] Remove the embedded Binance crypto terminal from the U.S. equities dashboard so the root view is U.S.-equities-only.
+- [x] Keep the dedicated Binance dashboard at its own route with no U.S. equities scanner panels.
+- [x] Add a clear two-option switcher for **U.S. Equities Dashboard** and **Binance Crypto Dashboard** on both dashboard headers.
+- [x] Add regression coverage and desktop/mobile verification that the two dashboards remain visually and functionally separate.
+- [x] Fix the Binance mobile header so the two-dashboard switcher remains visible rather than being hidden by the compact navigation rule.

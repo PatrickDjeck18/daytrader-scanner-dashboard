@@ -1,0 +1,21 @@
+.dashboard-switcher, .binance-dashboard-switcher { display: inline-flex; align-items: center; overflow: hidden; border: 1px solid rgba(102,119,151,.42); border-radius: 5px; background: rgba(9,14,28,.72); }
+.dashboard-switcher a, .binance-dashboard-switcher a { padding: 6px 9px; color: #9ba9c9; border-right: 1px solid rgba(102,119,151,.34); font: 700 8px ui-monospace, monospace; letter-spacing: .06em; text-decoration: none; white-space: nowrap; }
+.dashboard-switcher a:last-child, .binance-dashboard-switcher a:last-child { border-right: 0; }
+.dashboard-switcher a:hover, .binance-dashboard-switcher a:hover { color: #e9eeff; background: rgba(103,88,232,.16); }
+.dashboard-switcher a[aria-current="page"] { color: #dcd6ff; background: rgba(103,88,232,.32); }
+.binance-dashboard-switcher { border-color: rgba(252,213,53,.38); background: rgba(252,213,53,.05); }
+.binance-dashboard-switcher a { color: #c6cbd2; border-color: rgba(252,213,53,.22); }
+.binance-dashboard-switcher a:hover { color: #fff3be; background: rgba(252,213,53,.12); }
+.binance-dashboard-switcher a[aria-current="page"] { color: #181a20; background: #fcd535; }
+.switcher-mobile-label { display: none; }
+@media (max-width: 1050px) { .topbar-right .dashboard-switcher { order: -1; }.feed-status { display: none; } }
+.binance-nav .binance-dashboard-switcher { margin-right: auto; }
+@media (max-width: 720px) {
+  .dashboard-switcher a, .binance-dashboard-switcher a { padding: 5px 6px; font-size: 7px; }
+  .topbar-right .dashboard-switcher { max-width: 173px; }
+  .binance-nav nav.binance-dashboard-switcher { display: inline-flex; flex: 1 1 auto; min-width: 0; margin-left: 0; margin-right: 0; }
+  .binance-dashboard-switcher a { flex: 1 1 50%; min-width: 0; overflow: hidden; text-align: center; text-overflow: ellipsis; }
+  .switcher-desktop-label { display: none; }
+  .switcher-mobile-label { display: inline; }
+  .binance-app .binance-nav-status { display: none; }
+}
