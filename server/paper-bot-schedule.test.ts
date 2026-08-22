@@ -7,5 +7,6 @@ describe("scheduled Binance paper bot", () => {
     const now = Date.parse("2026-08-22T10:05:00.000Z");
     expect(paperBotRunKey("shared-task", 11, 5, now)).not.toBe(paperBotRunKey("shared-task", 12, 5, now));
     expect(paperBotRunKey("shared-task", 11, 5, now)).toBe(paperBotRunKey("shared-task", 11, 5, now));
+    expect(paperBotRunKey("shared-task", 11, 5, now, "BTCUSDT")).not.toBe(paperBotRunKey("shared-task", 11, 5, now, "ETHUSDT"));
   });
 });

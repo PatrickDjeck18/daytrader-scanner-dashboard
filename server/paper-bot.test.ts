@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { assessFastMomentumDecision, assessRangeReversionDecision, assessScalpingDecision, attachHoldDiagnostic, buildRiskManagedPaperOrder, constrainDecisionToConfiguredSymbols, deriveHoldCategory, isDailyLossStopped, parseDeepSeekDecisionContent, requestDeepSeekDecision, toUtcDateKey } from "./paper-bot";
+import { assessFastMomentumDecision, assessRangeReversionDecision, assessScalpingDecision, attachHoldDiagnostic, buildRiskManagedPaperOrder, constrainDecisionToConfiguredSymbols, deriveHoldCategory, detectRangeRegime, isDailyLossStopped, parseDeepSeekDecisionContent, rangeInactiveHold, requestDeepSeekDecision, toUtcDateKey } from "./paper-bot";
 
 const account = { equity: 10_000, buyingPower: 10_000, dailyStartEquity: 10_000, positions: [] };
 describe("Binance paper bot risk controls", () => {
@@ -54,5 +54,11 @@ describe("Binance paper bot risk controls", () => {
     expect(assessRangeReversionDecision({ decision, markPrice: 100, context: range }).allowed).toBe(true);
     expect(assessRangeReversionDecision({ decision, markPrice: 100, context: { ...range, oneMinute: { bars: 40, changePct: .01 } } }).allowed).toBe(false);
     expect(assessRangeReversionDecision({ decision, markPrice: 100, context: { ...range, fifteenMinute: { bars: 40, changePct: 1 } } }).allowed).toBe(false);
+  });
+  it("marks range mode inactive in a trending regime rather than representing it as an unexplained hold", () => {
+    const trend = { oneMinute: { bars: 40, changePct: .15 }, fiveMinute: { bars: 40, changePct: .52 }, fifteenMinute: { bars: 40, changePct: .84 } };
+    expect(detectRangeRegime(trend)).toBe("trend");
+    expect(rangeInactiveHold("BTCUSDT", "trend")).toMatchObject({ action: "hold", holdCategory: "no_qualified_setup" });
+    expect(rangeInactiveHold("BTCUSDT", "trend").reason).toContain("mode inactive");
   });
 });

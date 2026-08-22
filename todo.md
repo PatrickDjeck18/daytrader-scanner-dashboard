@@ -546,3 +546,10 @@
 - [x] Distinguish conflict, low-volatility, and risk-guard hold reasons in persisted paper-bot activity.
 - [x] Add selectable faster momentum confirmation and optional range-reversion paper simulation modes while retaining hard risk controls.
 - [x] Add deterministic strategy-mode coverage, validate, and publish the refined paper-only bot controls.
+
+# Paper-only decision quality and coverage
+
+- [x] Audit persisted decision confidence, hold source, regime fit, and configured-symbol coverage.
+- [x] Add range-regime diagnostics, separate model/parsing holds from market holds, and surface confidence distribution in paper-only activity.
+- [x] Evaluate each configured pair independently per scheduled cycle while preserving per-pair idempotency and all hard risk controls.
+- [x] Add deterministic coverage, validate, and publish the decision-quality and coverage refinement.
