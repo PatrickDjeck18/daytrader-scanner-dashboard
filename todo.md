@@ -289,3 +289,13 @@
 - [x] Add regression coverage for positive, negative, neutral, and unavailable direction states.
 - [x] Run TypeScript, Vitest, and browser visual verification.
 - [x] Save and publish the updated checkpoint.
+
+# Refresh and watchlist interaction repair
+
+- [x] Trace the refresh button and add-symbol-to-watchlist event paths.
+- [x] Make refresh explicitly invalidate or refetch relevant market-data queries and show feedback.
+- [x] Make add-symbol-to-watchlist reliably add valid symbols, prevent duplicates, and show feedback.
+- [x] Ensure the add-symbol control works when provider quotes are unavailable and does not fabricate values.
+- [x] Add regression tests for refresh and watchlist-add behavior.
+- [x] Run TypeScript, full Vitest suite, production build, and browser interaction verification.
+- [x] Save and publish the repaired checkpoint.
