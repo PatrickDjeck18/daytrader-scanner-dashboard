@@ -24,6 +24,12 @@ export function parseDeepSeekDecisionContent(content: string | null | undefined,
   }
 }
 
+export function constrainDecisionToConfiguredSymbols(decision: BotDecision, configuredSymbols: string[]): BotDecision {
+  const fallbackSymbol = configuredSymbols[0] ?? BOT_DEFAULTS.symbols[0];
+  if (configuredSymbols.includes(decision.symbol)) return decision;
+  return noTradeDeepSeekDecision(fallbackSymbol, "DeepSeek did not return exactly one configured pair; the run is recorded as hold and no simulated order was created");
+}
+
 export function toUtcDateKey(now = new Date()) { return now.toISOString().slice(0, 10); }
 export function isDailyLossStopped(account: BotAccount, stopPct: number) { return account.equity <= account.dailyStartEquity * (1 - stopPct / 100); }
 export function buildRiskManagedPaperOrder(input: { decision: BotDecision; markPrice: number; account: BotAccount; riskPct: number; maxOpenPositions: number }) {
@@ -61,13 +67,15 @@ export function assessScalpingDecision(input: { decision: BotDecision; markPrice
   return { allowed: true as const };
 }
 
-export async function requestDeepSeekDecision(input: { marketContext: unknown; symbol: string; fetchImpl?: typeof fetch }): Promise<BotDecision> {
+export async function requestDeepSeekDecision(input: { marketContext: unknown; configuredSymbols: string[]; fetchImpl?: typeof fetch }): Promise<BotDecision> {
   const apiKey = process.env.DEEPSEEK_API_KEY;
   if (!apiKey) throw new Error("DeepSeek analysis is not configured");
   const fetchImpl = input.fetchImpl ?? fetch;
-  const response = await fetchImpl("https://api.deepseek.com/chat/completions", { method: "POST", headers: { "content-type": "application/json", authorization: `Bearer ${apiKey}` }, body: JSON.stringify({ model: "deepseek-v4-flash", stream: false, thinking: { type: "disabled" }, max_tokens: 700, response_format: { type: "json_object" }, messages: [{ role: "system", content: "You analyze provider-returned Binance spot market context for a paper-only scalp-momentum simulation. 1m provides execution momentum; 5m and 15m must confirm direction. For a buy, propose a stop 0.03% to 0.75% below mark and a target with at least 1.2:1 reward-to-risk. For a sell, only propose closing an existing simulated spot position. Use hold whenever confirmation, price availability, or setup quality is insufficient. Return exactly one non-empty JSON object and no markdown. Required JSON shape: {\"action\":\"hold\",\"symbol\":\"BTCUSDT\",\"confidence\":0,\"stopPrice\":null,\"targetPrice\":null,\"reason\":\"brief reason\"}. Never return blank. Never imply a real order, account action, leverage, transfer, or financial certainty." }, { role: "user", content: `Return JSON for symbol ${input.symbol}. Market context: ${JSON.stringify(input.marketContext)}` }] }), signal: AbortSignal.timeout(20_000) });
+  const configuredSymbols = input.configuredSymbols.filter(symbol => /^[A-Z0-9]{5,24}$/.test(symbol));
+  const fallbackSymbol = configuredSymbols[0] ?? BOT_DEFAULTS.symbols[0];
+  const response = await fetchImpl("https://api.deepseek.com/chat/completions", { method: "POST", headers: { "content-type": "application/json", authorization: `Bearer ${apiKey}` }, body: JSON.stringify({ model: "deepseek-v4-flash", stream: false, thinking: { type: "disabled" }, max_tokens: 700, response_format: { type: "json_object" }, messages: [{ role: "system", content: "You analyze provider-returned Binance spot market context for a paper-only scalp-momentum simulation. 1m provides execution momentum; 5m and 15m must confirm direction. For a buy, propose a stop 0.03% to 0.75% below mark and a target with at least 1.2:1 reward-to-risk. For a sell, only propose closing an existing simulated spot position. Use hold whenever confirmation, price availability, or setup quality is insufficient. Return exactly one non-empty JSON object and no markdown. The symbol field MUST contain exactly one configured symbol from the allowed list, never a comma-separated list or an external pair. Required JSON shape: {\"action\":\"hold\",\"symbol\":\"BTCUSDT\",\"confidence\":0,\"stopPrice\":null,\"targetPrice\":null,\"reason\":\"brief reason\"}. Never return blank. Never imply a real order, account action, leverage, transfer, or financial certainty." }, { role: "user", content: `Return JSON for exactly one allowed symbol: ${JSON.stringify(configuredSymbols)}. Market context: ${JSON.stringify(input.marketContext)}` }] }), signal: AbortSignal.timeout(20_000) });
   if (!response.ok) throw new Error(`DeepSeek analysis request failed (${response.status})`);
   const payload = await response.json() as { choices?: Array<{ message?: { content?: string | null } }> };
   const content = payload.choices?.[0]?.message?.content;
-  return parseDeepSeekDecisionContent(content, input.symbol);
+  return constrainDecisionToConfiguredSymbols(parseDeepSeekDecisionContent(content, fallbackSymbol), configuredSymbols);
 }

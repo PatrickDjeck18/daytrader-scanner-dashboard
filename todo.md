@@ -527,3 +527,9 @@
 - [x] Add a five-second authenticated public-market context refresh for the displayed 1m, 5m, and 15m scalping view.
 - [x] Clearly distinguish five-second chart observation from the managed paper-order decision cadence.
 - [x] Add regression coverage, validate, and publish the current-hosting five-second context update.
+
+# DeepSeek configured-pair decision repair
+
+- [x] Audit recorded out-of-universe DeepSeek responses and the configured-pair validation path.
+- [x] Constrain DeepSeek output to a single configured pair and safely recover malformed multi-symbol output without creating an invalid paper order.
+- [x] Add regression coverage, validate, and publish the configured-pair decision repair.
