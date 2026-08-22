@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildRiskManagedPaperOrder, isDailyLossStopped, requestDeepSeekDecision, toUtcDateKey } from "./paper-bot";
+import { buildRiskManagedPaperOrder, isDailyLossStopped, parseDeepSeekDecisionContent, requestDeepSeekDecision, toUtcDateKey } from "./paper-bot";
 
 const account = { equity: 10_000, buyingPower: 10_000, dailyStartEquity: 10_000, positions: [] };
 describe("Binance paper bot risk controls", () => {
@@ -9,5 +9,17 @@ describe("Binance paper bot risk controls", () => {
   it("accepts only structured DeepSeek paper decisions", async () => {
     const decision = await requestDeepSeekDecision({ symbol: "BTCUSDT", marketContext: { provider: "test" }, fetchImpl: async () => new Response(JSON.stringify({ choices: [{ message: { content: JSON.stringify({ action: "hold", symbol: "BTCUSDT", confidence: .62, stopPrice: null, targetPrice: null, reason: "Simulated context is indecisive" }) } }] }), { status: 200 }) });
     expect(decision).toMatchObject({ action: "hold", symbol: "BTCUSDT" });
+  });
+  it("returns a no-trade decision when the completion API has empty content", async () => {
+    const decision = await requestDeepSeekDecision({ symbol: "BTCUSDT", marketContext: { provider: "test" }, fetchImpl: async () => new Response(JSON.stringify({ choices: [{ message: { content: "" } }] }), { status: 200 }) });
+    expect(decision).toMatchObject({ action: "hold", symbol: "BTCUSDT", confidence: 0 });
+    expect(decision.reason).toContain("no decision content");
+  });
+  it("converts empty, malformed, and truncated DeepSeek content into safe hold decisions", () => {
+    for (const content of [undefined, "", "{\"action\":\"buy\"", "not-json"]) {
+      const decision = parseDeepSeekDecisionContent(content, "BTCUSDT");
+      expect(decision).toMatchObject({ action: "hold", symbol: "BTCUSDT", confidence: 0, stopPrice: null, targetPrice: null });
+      expect(decision.reason).toContain("no simulated order");
+    }
   });
 });

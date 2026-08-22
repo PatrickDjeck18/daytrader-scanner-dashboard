@@ -475,4 +475,10 @@
 - [x] Implement the user-selected scheduled paper-bot mode with managed project-owned 1m/5m/15m jobs, per-user pause/resume, per-account idempotent runs, and no in-process timer.
  - [x] Apply the selected 1m, 5m, and 15m decision context, 1% per-trade risk limit, and 3% daily simulated-loss stop to every bot run.
  - [x] Resolve scheduled paper-bot TypeScript mismatches for Binance bar timestamps, quote availability, and cron callback request typing.
- - [x] Resolve the paper-bot UI ticker-price type mismatch and add the responsive paper-account/bot styles.
+- [x] Resolve the paper-bot UI ticker-price type mismatch and add the responsive paper-account/bot styles.
+
+# DeepSeek empty-decision repair
+
+- [x] Trace and safely normalize empty DeepSeek decision content in the scheduled paper bot.
+- [x] Add regression coverage for empty, malformed, and truncated DeepSeek decision responses.
+- [x] Revalidate, publish, and verify the paper-only error state does not create a simulated order.
