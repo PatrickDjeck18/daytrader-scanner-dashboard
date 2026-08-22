@@ -340,3 +340,13 @@
 - [x] Save and publish the verified Supabase database checkpoint.
 
 - [x] Use the explicitly selected Supabase project `nafzdjyehhuexjsipaeb` (`https://nafzdjyehhuexjsipaeb.supabase.co`) as the migration target instead of the previously detected project.
+
+# Massive historical-bars rate-limit repair
+
+- [x] Trace the Massive bars 429 path from provider adapter through the tRPC chart query.
+- [x] Normalize bars 429 responses to a typed unavailable or delayed result without uncaught client errors.
+- [x] Add a bounded bars cooldown to prevent repeated provider calls during the rate-limit window.
+- [x] Normalize the local tRPC bars limiter into the same safe delayed chart state rather than surfacing a client query error.
+- [x] Add regression coverage for Massive bars 429 behavior and client chart handling.
+- [x] Run TypeScript, full Vitest, production build, browser verification, and log inspection.
+- [x] Save and publish the verified historical-bars rate-limit repair checkpoint.

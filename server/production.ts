@@ -3,6 +3,7 @@ import { TRPCError } from "@trpc/server";
 import { recordAuditEvent } from "./db";
 
 const buckets = new Map<string, { count: number; resetAt: number }>();
+export function resetRateLimitsForTests() { buckets.clear(); }
 
 export function requestId(req: { headers?: Record<string, unknown> | { [key: string]: unknown } }) {
   const header = req.headers?.["x-request-id"];

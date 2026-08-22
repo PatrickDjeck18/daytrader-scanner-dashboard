@@ -10,10 +10,15 @@ export type MassiveNewsItem = { id: string; title: string; article_url: string; 
 const baseUrl = "https://api.massive.com";
 const stocksSocket = "wss://socket.massive.com/stocks";
 const REALTIME_DENIAL_COOLDOWN_MS = 15 * 60_000;
+const BARS_RATE_LIMIT_COOLDOWN_MS = 60_000;
 let realtimeDeniedUntil = 0;
+let barsRateLimitedUntil = 0;
 function realtimeAccessDenied() { return Date.now() < realtimeDeniedUntil; }
 function markRealtimeDenied() { realtimeDeniedUntil = Date.now() + REALTIME_DENIAL_COOLDOWN_MS; }
 export function resetRealtimeDenialForTests() { realtimeDeniedUntil = 0; }
+function barsRateLimited() { return Date.now() < barsRateLimitedUntil; }
+function markBarsRateLimited() { barsRateLimitedUntil = Date.now() + BARS_RATE_LIMIT_COOLDOWN_MS; }
+export function resetBarsRateLimitForTests() { barsRateLimitedUntil = 0; }
 
 function requireKey() { const key = process.env.MASSIVE_API_KEY; if (!key) throw new Error("MASSIVE_API_KEY is not configured"); return key; }
 function fallbackQuote(symbol: string, reason: string): MarketQuote { return { symbol, price: 0, bid: 0, ask: 0, changePct: 0, volume: 0, rvol: 0, floatM: 0, marketCapM: 0, dollarVolumeM: 0, vwap: 0, sessionHigh: 0, sessionLow: 0, halted: false, lastUpdated: Date.now(), source: "unavailable", providerError: reason }; }
@@ -49,7 +54,7 @@ export class MassiveMarketDataProvider implements MarketDataProvider {
 
   async getTrades(symbol: string, from: string, to: string): Promise<MarketTrade[]> { if (realtimeAccessDenied()) return []; const key = requireKey(); const response = await fetchWithTimeout(`${baseUrl}/v3/trades/${encodeURIComponent(symbol)}?timestamp=${encodeURIComponent(from)}&order=asc&sort=timestamp&limit=1000&apiKey=${encodeURIComponent(key)}`); if (!response.ok) { if (response.status === 401 || response.status === 403) markRealtimeDenied(); throw new Error(`Massive trades request failed for ${symbol}: ${response.status}`); } const body = await response.json() as { results?: Array<{ participant_timestamp?: number; price: number; size: number }> }; return (body.results ?? []).map(item => normalizeTrade({ ev: "T", sym: symbol, p: item.price, s: item.size, t: item.participant_timestamp })); }
 
-  async getBars(symbol: string, from: string, to: string): Promise<MarketBar[]> { const key = requireKey(); const response = await fetchWithTimeout(`${baseUrl}/v2/aggs/ticker/${encodeURIComponent(symbol)}/range/1/minute/${encodeURIComponent(from)}/${encodeURIComponent(to)}?adjusted=true&sort=asc&limit=50000&apiKey=${encodeURIComponent(key)}`); if (!response.ok) throw new Error(`Massive bars request failed for ${symbol}: ${response.status}`); const body = await response.json() as { results?: Array<{ o: number; c: number; h: number; l: number; v: number; vw?: number; t: number }> }; return (body.results ?? []).map(item => normalizeMinute({ ev: "AM", sym: symbol, o: item.o, c: item.c, h: item.h, l: item.l, v: item.v, vw: item.vw, s: item.t, e: item.t + 59999 })); }
+  async getBars(symbol: string, from: string, to: string): Promise<MarketBar[]> { if (barsRateLimited()) return []; const key = requireKey(); const started = Date.now(); const response = await fetchWithTimeout(`${baseUrl}/v2/aggs/ticker/${encodeURIComponent(symbol)}/range/1/minute/${encodeURIComponent(from)}/${encodeURIComponent(to)}?adjusted=true&sort=asc&limit=50000&apiKey=${encodeURIComponent(key)}`); if (!response.ok) { if (response.status === 429) { markBarsRateLimited(); void updateProviderHealth({ provider: "massive", status: "degraded", latencyMs: Date.now() - started, error: "Massive bars rate limit reached; chart delayed" }).catch(() => undefined); return []; } throw new Error(`Massive bars request failed for ${symbol}: ${response.status}`); } const body = await response.json() as { results?: Array<{ o: number; c: number; h: number; l: number; v: number; vw?: number; t: number }> }; return (body.results ?? []).map(item => normalizeMinute({ ev: "AM", sym: symbol, o: item.o, c: item.c, h: item.h, l: item.l, v: item.v, vw: item.vw, s: item.t, e: item.t + 59999 })); }
 
   subscribe(symbols: string[], onQuote: (quote: MarketQuote) => void, onTrade?: (trade: MarketTrade) => void, onBar?: (bar: MarketBar) => void) {
     let closed = false; let socket: WebSocket | null = null; let attempt = 0; let reconnectTimer: ReturnType<typeof setTimeout> | undefined;

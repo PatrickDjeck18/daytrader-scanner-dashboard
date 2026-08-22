@@ -1,8 +1,8 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { massiveNews, massiveProvider, normalizeRestSnapshot } from "./massive";
+import { massiveNews, massiveProvider, normalizeRestSnapshot, resetBarsRateLimitForTests } from "./massive";
 
 describe("Massive documented REST shapes", () => {
-  afterEach(() => vi.unstubAllGlobals());
+  afterEach(() => { vi.unstubAllGlobals(); resetBarsRateLimitForTests(); });
 
   it("normalizes the documented snapshot envelope with quote, trade, day, and minute fields", () => {
     const result = normalizeRestSnapshot({ ticker: { ticker: "IONQ", lastQuote: { bid: 40.1, ask: 40.2 }, lastTrade: { price: 40.15, sip_timestamp: 1_700_000_000_000_000_000 }, min: { vw: 40.05 }, day: { h: 41, l: 38, c: 40, v: 2_000_000, vw: 39.8 }, todaysChangePerc: 4.2, updated: 1_700_000_000_000_000_000 } }, "IONQ");
@@ -32,5 +32,14 @@ describe("Massive documented REST shapes", () => {
     expect(bars[0]).toMatchObject({ symbol: "IONQ", open: 40, close: 41, high: 42, low: 39, volume: 5000, vwap: 40.5 });
     const news = await massiveNews("IONQ", 1);
     expect(news[0]).toMatchObject({ id: "n1", title: "IonQ update", tickers: ["IONQ"], publisher: { name: "Example" } });
+  });
+
+  it("returns an empty delayed chart result and cools down after a bars rate limit", async () => {
+    process.env.MASSIVE_API_KEY = "test-key";
+    const fetchMock = vi.fn().mockResolvedValue(new Response("rate limited", { status: 429 }));
+    vi.stubGlobal("fetch", fetchMock);
+    await expect(massiveProvider.getBars("SMCI", "2026-08-22", "2026-08-22")).resolves.toEqual([]);
+    await expect(massiveProvider.getBars("SMCI", "2026-08-22", "2026-08-22")).resolves.toEqual([]);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 });
