@@ -11,6 +11,8 @@ import { finnhubNews, finnhubProvider, finnhubSymbols } from "./finnhub";
 import { addWatchlistItem, createAlertRule, createBacktestRun, createPaperOrder, createWatchlist, deleteAlertRule, deleteLayout, deletePreset, deleteWatchlist, deleteWatchlistItem, getProviderHealth, listAlertRules, listBacktestRuns, listLayouts, listPaperOrders, listPresets, listWatchlistItems, listWatchlists, paperAccountSummary, saveLayout, savePreset } from "./db";
 import { assertPaperOnlyOrder, replayBars, runScannerBacktest } from "./backtest";
 import { checkMassiveFlatFileHealth } from "./massive-flatfiles";
+import { CRYPTO_INTERVALS, CRYPTO_MARKETS, unavailableCryptoQuote } from "@shared/crypto";
+import { fetchBinanceCryptoBars, fetchBinanceCryptoQuote, fetchBinanceCryptoTrades } from "./binance";
 
 const activeMarketProvider = process.env.FINNHUB_API_KEY ? finnhubProvider : massiveProvider;
 const activeProviderName = process.env.FINNHUB_API_KEY ? "finnhub" : "massive";
@@ -44,6 +46,12 @@ export const appRouter = router({
     flatFileHealth: publicProcedure.query(() => checkMassiveFlatFileHealth()),
     bars: publicProcedure.input(z.object({ symbol: z.string().trim().toUpperCase().regex(/^[A-Z.\-]{1,12}$/), from: z.string().min(1).max(40), to: z.string().min(1).max(40) })).query(async ({ ctx, input }) => { try { assertRateLimit(`bars:${clientKey(ctx.req)}`, 10, 60_000); } catch (error) { if (error instanceof TRPCError && error.code === "TOO_MANY_REQUESTS") return []; throw error; } return marketBars(input.symbol, input.from, input.to); }),
     trades: publicProcedure.input(z.object({ symbol: z.string().trim().toUpperCase().regex(/^[A-Z.\-]{1,12}$/), from: z.string().min(1).max(40), to: z.string().min(1).max(40) })).query(({ ctx, input }) => { try { assertRateLimit(`trades:${clientKey(ctx.req)}`, 10, 60_000); } catch (error) { if (error instanceof TRPCError && error.code === "TOO_MANY_REQUESTS") return []; throw error; } return marketTrades(input.symbol, input.from, input.to); }),
+  }),
+
+  crypto: router({
+    quote: publicProcedure.input(z.object({ market: z.enum(CRYPTO_MARKETS), symbol: z.string().trim().toUpperCase().regex(/^[A-Z0-9/_\-]{5,24}$/) })).query(({ ctx, input }) => { try { assertRateLimit(`crypto-quote:${clientKey(ctx.req)}`, 30, 60_000); } catch (error) { if (error instanceof TRPCError && error.code === "TOO_MANY_REQUESTS") return unavailableCryptoQuote(input.market, input.symbol, "Local crypto quote request cooldown active"); throw error; } return fetchBinanceCryptoQuote(input.market, input.symbol); }),
+    bars: publicProcedure.input(z.object({ market: z.enum(CRYPTO_MARKETS), symbol: z.string().trim().toUpperCase().regex(/^[A-Z0-9/_\-]{5,24}$/), interval: z.enum(CRYPTO_INTERVALS), limit: z.number().int().min(20).max(240).default(120) })).query(async ({ ctx, input }) => { try { assertRateLimit(`crypto-bars:${clientKey(ctx.req)}`, 20, 60_000); } catch (error) { if (error instanceof TRPCError && error.code === "TOO_MANY_REQUESTS") return []; throw error; } try { return await fetchBinanceCryptoBars(input.market, input.symbol, input.interval, input.limit); } catch { return []; } }),
+    trades: publicProcedure.input(z.object({ market: z.enum(CRYPTO_MARKETS), symbol: z.string().trim().toUpperCase().regex(/^[A-Z0-9/_\-]{5,24}$/), limit: z.number().int().min(1).max(50).default(10) })).query(async ({ ctx, input }) => { try { assertRateLimit(`crypto-trades:${clientKey(ctx.req)}`, 20, 60_000); } catch (error) { if (error instanceof TRPCError && error.code === "TOO_MANY_REQUESTS") return []; throw error; } try { return await fetchBinanceCryptoTrades(input.market, input.symbol, input.limit); } catch { return []; } }),
   }),
 
   workspace: router({

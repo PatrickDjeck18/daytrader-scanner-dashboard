@@ -368,3 +368,22 @@
 - [x] Trace the uncaught local market-query rate-limit error observed during modernisation browser verification.
 - [x] Normalize the affected public market query into a typed safe state instead of surfacing a client query error.
 - [x] Add a regression test and re-run browser log verification after restart.
+
+# Live chart and live news enablement
+
+- [ ] Verify the current Massive and Finnhub entitlement limits for live U.S. chart bars and news.
+- [ ] Map the existing dashboard provider adapters to the viable live-data integration paths.
+- [ ] Present the required provider entitlement and secure configuration steps without enabling live orders.
+- [ ] Configure the user-selected entitlement and validate provider-backed live chart/news behavior if the required credentials are available.
+
+# Binance crypto data integration
+
+- [x] Confirm whether the user needs Binance Spot, Futures, or both, and whether the account is production or testnet. (User selected all three public markets; account mode is not used.)
+- [x] Verify the regional availability and public versus authenticated Binance API requirements.
+- [x] Add a clearly separated read-only Binance crypto quote and chart integration without live order execution.
+- [x] Keep Binance credentials server-only and request only the minimum required read scope if authenticated endpoints are needed. (No credentials are required or requested for public market data.)
+- [x] Add tests and validate that U.S. equities, paper-only execution, and no-fake-data safety boundaries remain unchanged.
+- [x] Support a clear market selector for Binance Global Spot, Global USDⓈ-M Futures, and Binance.US Spot data.
+- [x] Surface venue, market type, freshness, regional availability, and provider errors without using generated market values.
+- [x] Add scoped starter instruments and input validation appropriate to each Binance market.
+- [x] Implement live Binance updates only while an active dashboard browser session is connected; do not add an always-on relay or background alert service.
