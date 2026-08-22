@@ -418,3 +418,9 @@
 - [x] Add a clear two-option switcher for **U.S. Equities Dashboard** and **Binance Crypto Dashboard** on both dashboard headers.
 - [x] Add regression coverage and desktop/mobile verification that the two dashboards remain visually and functionally separate.
 - [x] Fix the Binance mobile header so the two-dashboard switcher remains visible rather than being hidden by the compact navigation rule.
+
+# Dashboard switch interaction verification
+
+- [x] Verify that the U.S. Equities and Binance Crypto switcher controls navigate to their respective dedicated routes on desktop and mobile.
+- [x] Add or refine any necessary switching affordance so the active dashboard and navigation action are unmistakable.
+- [x] Add deterministic coverage for route targets, verify actual browser navigation, and publish the result.

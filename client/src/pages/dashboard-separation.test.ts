@@ -11,6 +11,7 @@ describe("dashboard separation", () => {
     expect(source).not.toContain("<CryptoTerminal />");
     expect(source).toContain("U.S. Equities");
     expect(source).toContain("Binance Crypto");
+    expect(source).toContain('href="/binance"');
   });
 
   it("keeps the Binance page dedicated to crypto while exposing the reciprocal switcher", () => {
@@ -21,6 +22,8 @@ describe("dashboard separation", () => {
     expect(source).toContain("switcher-mobile-label");
     expect(source).toContain("U.S. Equities");
     expect(source).toContain("Binance Crypto");
+    expect(source).toContain('href="/"');
+    expect(source).toContain('href="/binance"');
     expect(source).not.toContain("Search all U.S. symbols");
   });
 });
