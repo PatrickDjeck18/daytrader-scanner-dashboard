@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildPaperActivityMarkers } from "./PaperBotActivityChart";
+import { buildPaperActivityMarkers, getLatestNextCandleForecast } from "./PaperBotActivityChart";
 
 describe("paper-bot live activity markers", () => {
   it("maps simulated entries, stop and target levels, and no-trade holds to one configured pair", () => {
@@ -17,5 +17,14 @@ describe("paper-bot live activity markers", () => {
   it("does not place a marker from another configured pair", () => {
     const markers = buildPaperActivityMarkers({ symbol: "BTCUSDT", orders: [{ id: 8, symbol: "ETHUSDT", side: "buy", fillPrice: "100", createdAt: "2026-08-22T10:00:00.000Z" }], runs: [] });
     expect(markers).toEqual([]);
+  });
+
+  it("extracts the latest valid experimental next-candle estimate only for the active pair", () => {
+    const runs = [
+      { id: 22, status: "hold", decision: JSON.stringify({ symbol: "BTCUSDT", nextCandle: { direction: "up", probability: .64, reason: "1m momentum is positive" } }), createdAt: "2026-08-22T10:03:00.000Z" },
+      { id: 21, status: "hold", decision: JSON.stringify({ symbol: "ETHUSDT", nextCandle: { direction: "down", probability: .7, reason: "Different configured pair" } }), createdAt: "2026-08-22T10:04:00.000Z" },
+    ];
+    expect(getLatestNextCandleForecast({ symbol: "BTCUSDT", runs })).toMatchObject({ direction: "up", probability: .64, reason: "1m momentum is positive" });
+    expect(getLatestNextCandleForecast({ symbol: "SOLUSDT", runs })).toBeUndefined();
   });
 });

@@ -533,3 +533,9 @@
 - [x] Audit recorded out-of-universe DeepSeek responses and the configured-pair validation path.
 - [x] Constrain DeepSeek output to a single configured pair and safely recover malformed multi-symbol output without creating an invalid paper order.
 - [x] Add regression coverage, validate, and publish the configured-pair decision repair.
+
+# Experimental next-candle forecast
+
+- [x] Inspect existing DeepSeek decision and 1m/5m/15m context contracts for safe forecast reuse.
+- [x] Add a clearly experimental next-candle direction probability display with uncertainty, freshness, and no-execution labels.
+- [x] Add regression coverage, validate, and publish the paper-only forecast display.
