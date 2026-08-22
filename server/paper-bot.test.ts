@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildRiskManagedPaperOrder, isDailyLossStopped, parseDeepSeekDecisionContent, requestDeepSeekDecision, toUtcDateKey } from "./paper-bot";
+import { assessScalpingDecision, buildRiskManagedPaperOrder, isDailyLossStopped, parseDeepSeekDecisionContent, requestDeepSeekDecision, toUtcDateKey } from "./paper-bot";
 
 const account = { equity: 10_000, buyingPower: 10_000, dailyStartEquity: 10_000, positions: [] };
 describe("Binance paper bot risk controls", () => {
@@ -21,5 +21,13 @@ describe("Binance paper bot risk controls", () => {
       expect(decision).toMatchObject({ action: "hold", symbol: "BTCUSDT", confidence: 0, stopPrice: null, targetPrice: null });
       expect(decision.reason).toContain("no simulated order");
     }
+  });
+  it("requires 1m momentum, 5m/15m confirmation, controlled stop distance, and reward-to-risk for scalping buys", () => {
+    const decision = { action: "buy" as const, symbol: "BTCUSDT", confidence: .8, stopPrice: 99.7, targetPrice: 100.5, reason: "paper scalp" };
+    const context = { oneMinute: { bars: 40, changePct: .12 }, fiveMinute: { bars: 40, changePct: .2 }, fifteenMinute: { bars: 40, changePct: .4 } };
+    expect(assessScalpingDecision({ decision, markPrice: 100, context }).allowed).toBe(true);
+    expect(assessScalpingDecision({ decision, markPrice: 100, context: { ...context, fiveMinute: { bars: 40, changePct: -.1 } } }).allowed).toBe(false);
+    expect(assessScalpingDecision({ decision: { ...decision, stopPrice: 98 }, markPrice: 100, context }).allowed).toBe(false);
+    expect(assessScalpingDecision({ decision: { ...decision, targetPrice: 100.2 }, markPrice: 100, context }).allowed).toBe(false);
   });
 });

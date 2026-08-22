@@ -489,3 +489,17 @@
 - [x] Show refreshed DeepSeek paper-decision status, rationale, and risk outcome in an authenticated activity timeline.
 - [x] Draw clear paper-only entry, stop, target, hold, and risk-blocked markers against the public Binance chart.
 - [x] Add deterministic visualization tests, responsive validation, and publish the updated paper-only activity view.
+
+# Disable public registration
+
+- [x] Remove self-service sign-up controls and handlers from the authentication UI.
+- [x] Preserve sign-in, password recovery, recovery callback, and protected-route behavior for existing users.
+- [x] Add regression coverage, validate responsive authentication screens, and publish the access restriction.
+- [ ] Disable Supabase Auth self-service registration at the provider level after the project owner signs in to the Supabase dashboard.
+
+# DeepSeek paper-only scalping strategy
+
+- [x] Define a configurable scalping-strategy contract using 1m execution and 5m/15m confirmation context.
+- [x] Add scalping-specific prompt guidance and hard paper-only entry filters while preserving 1% risk and the 3% daily stop.
+- [x] Show the selected strategy and scalping decision rationale in the authenticated paper-bot UI and activity chart.
+- [x] Add deterministic strategy/risk tests, validate, and publish the scalping simulation.

@@ -1,9 +1,11 @@
 import { z } from "zod";
 
 export const BOT_DEFAULTS = { market: "global-spot", symbols: ["BTCUSDT", "ETHUSDT", "SOLUSDT"], scheduleMinutes: 5, riskPct: 1, dailyLossStopPct: 3, maxOpenPositions: 3 } as const;
+export const PAPER_SCALPING_STRATEGY = "scalp_momentum" as const;
 export const botDecisionSchema = z.object({ action: z.enum(["buy", "sell", "hold"]), symbol: z.string().regex(/^[A-Z0-9]{5,24}$/), confidence: z.number().min(0).max(1), stopPrice: z.number().positive().nullable(), targetPrice: z.number().positive().nullable(), reason: z.string().min(1).max(600) });
 export type BotDecision = z.infer<typeof botDecisionSchema>;
 export type BotAccount = { equity: number; buyingPower: number; dailyStartEquity: number; positions: Array<{ symbol: string; quantity: number; averageCost: number }> };
+export type ScalpMarketContext = { oneMinute: { bars: number; changePct: number | null }; fiveMinute: { bars: number; changePct: number | null }; fifteenMinute: { bars: number; changePct: number | null } };
 
 export function noTradeDeepSeekDecision(symbol: string, reason: string): BotDecision {
   return { action: "hold", symbol, confidence: 0, stopPrice: null, targetPrice: null, reason };
@@ -43,11 +45,27 @@ export function buildRiskManagedPaperOrder(input: { decision: BotDecision; markP
   return { allowed: true as const, side: "buy" as const, quantity, stopPrice: decision.stopPrice, targetPrice: decision.targetPrice };
 }
 
+export function assessScalpingDecision(input: { decision: BotDecision; markPrice: number; context: ScalpMarketContext | undefined }) {
+  const { decision, markPrice, context } = input;
+  if (decision.action === "hold") return { allowed: true as const };
+  if (decision.confidence < .6) return { allowed: false as const, reason: "Scalping filter requires at least 0.60 model confidence" };
+  if (!context || context.oneMinute.bars < 12 || context.fiveMinute.bars < 12 || context.fifteenMinute.bars < 12) return { allowed: false as const, reason: "Scalping filter requires sufficient 1m, 5m, and 15m provider bars" };
+  const one = context.oneMinute.changePct ?? 0; const five = context.fiveMinute.changePct ?? 0; const fifteen = context.fifteenMinute.changePct ?? 0;
+  if (decision.action === "buy") {
+    if (one < .05 || five < 0 || fifteen < 0) return { allowed: false as const, reason: "Scalping buy requires positive 1m momentum with 5m/15m confirmation" };
+    if (!decision.stopPrice || !decision.targetPrice || decision.stopPrice >= markPrice || decision.targetPrice <= markPrice) return { allowed: false as const, reason: "Scalping buy requires a stop below and target above the provider mark" };
+    const riskPct = ((markPrice - decision.stopPrice) / markPrice) * 100; const rewardRisk = (decision.targetPrice - markPrice) / (markPrice - decision.stopPrice);
+    if (riskPct < .03 || riskPct > .75) return { allowed: false as const, reason: "Scalping stop distance must be between 0.03% and 0.75%" };
+    if (rewardRisk < 1.2) return { allowed: false as const, reason: "Scalping target requires at least 1.2:1 simulated reward-to-risk" };
+  } else if (one > -.05 || five > 0 || fifteen > 0) return { allowed: false as const, reason: "Scalping sell requires negative 1m momentum with 5m/15m confirmation" };
+  return { allowed: true as const };
+}
+
 export async function requestDeepSeekDecision(input: { marketContext: unknown; symbol: string; fetchImpl?: typeof fetch }): Promise<BotDecision> {
   const apiKey = process.env.DEEPSEEK_API_KEY;
   if (!apiKey) throw new Error("DeepSeek analysis is not configured");
   const fetchImpl = input.fetchImpl ?? fetch;
-  const response = await fetchImpl("https://api.deepseek.com/chat/completions", { method: "POST", headers: { "content-type": "application/json", authorization: `Bearer ${apiKey}` }, body: JSON.stringify({ model: "deepseek-v4-flash", stream: false, thinking: { type: "disabled" }, max_tokens: 700, response_format: { type: "json_object" }, messages: [{ role: "system", content: "You analyze provider-returned Binance spot market context for a paper-trading simulation only. Return exactly one non-empty JSON object and no markdown. Required JSON shape: {\"action\":\"hold\",\"symbol\":\"BTCUSDT\",\"confidence\":0,\"stopPrice\":null,\"targetPrice\":null,\"reason\":\"brief reason\"}. action must be buy, sell, or hold. Never return blank. Never imply a real order, account action, leverage, transfer, or financial certainty." }, { role: "user", content: `Return JSON for symbol ${input.symbol}. Market context: ${JSON.stringify(input.marketContext)}` }] }), signal: AbortSignal.timeout(20_000) });
+  const response = await fetchImpl("https://api.deepseek.com/chat/completions", { method: "POST", headers: { "content-type": "application/json", authorization: `Bearer ${apiKey}` }, body: JSON.stringify({ model: "deepseek-v4-flash", stream: false, thinking: { type: "disabled" }, max_tokens: 700, response_format: { type: "json_object" }, messages: [{ role: "system", content: "You analyze provider-returned Binance spot market context for a paper-only scalp-momentum simulation. 1m provides execution momentum; 5m and 15m must confirm direction. For a buy, propose a stop 0.03% to 0.75% below mark and a target with at least 1.2:1 reward-to-risk. For a sell, only propose closing an existing simulated spot position. Use hold whenever confirmation, price availability, or setup quality is insufficient. Return exactly one non-empty JSON object and no markdown. Required JSON shape: {\"action\":\"hold\",\"symbol\":\"BTCUSDT\",\"confidence\":0,\"stopPrice\":null,\"targetPrice\":null,\"reason\":\"brief reason\"}. Never return blank. Never imply a real order, account action, leverage, transfer, or financial certainty." }, { role: "user", content: `Return JSON for symbol ${input.symbol}. Market context: ${JSON.stringify(input.marketContext)}` }] }), signal: AbortSignal.timeout(20_000) });
   if (!response.ok) throw new Error(`DeepSeek analysis request failed (${response.status})`);
   const payload = await response.json() as { choices?: Array<{ message?: { content?: string | null } }> };
   const content = payload.choices?.[0]?.message?.content;

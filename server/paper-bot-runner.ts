@@ -1,7 +1,7 @@
 import { fetchBinanceCryptoBars, fetchBinanceCryptoQuote } from "./binance";
 import { binancePaperAccountSummary, completePaperBotRun, createBinancePaperOrder, ensureBinancePaperAccount, getPaperBotConfigByTaskUid, listEnabledPaperBotConfigsByTaskUid, startPaperBotRun } from "./db";
 import { paperBotConfigs } from "../drizzle/schema";
-import { buildRiskManagedPaperOrder, isDailyLossStopped, requestDeepSeekDecision } from "./paper-bot";
+import { assessScalpingDecision, buildRiskManagedPaperOrder, isDailyLossStopped, PAPER_SCALPING_STRATEGY, requestDeepSeekDecision } from "./paper-bot";
 import { safeAudit } from "./production";
 
 type PaperBotConfig = typeof paperBotConfigs.$inferSelect;
@@ -18,9 +18,11 @@ async function runPaperBotConfig(config: PaperBotConfig, taskUid: string, now = 
   if (!started.created) return { ok: true, skipped: "duplicate" as const };
   try {
     if (isDailyLossStopped(account, Number(config.dailyLossStopPct))) { await completePaperBotRun({ id: started.run.id, configId: config.id, status: "risk_blocked", error: "Daily simulated-loss stop is active" }); return { ok: true, status: "risk_blocked" as const }; }
-    const decision = await requestDeepSeekDecision({ symbol: symbols.join(","), marketContext: { market: "global-spot", supportedSymbols: symbols, account: { equity: account.equity, buyingPower: account.buyingPower, positions: account.positions.map(item => ({ symbol: item.symbol, quantity: item.quantity, averageCost: item.averageCost })) }, contexts } });
+    const decision = await requestDeepSeekDecision({ symbol: symbols.join(","), marketContext: { strategy: config.strategy, market: "global-spot", supportedSymbols: symbols, account: { equity: account.equity, buyingPower: account.buyingPower, positions: account.positions.map(item => ({ symbol: item.symbol, quantity: item.quantity, averageCost: item.averageCost })) }, contexts } });
     if (!symbols.includes(decision.symbol)) { await completePaperBotRun({ id: started.run.id, configId: config.id, status: "risk_blocked", decision, error: "AI selected a pair outside the configured universe" }); return { ok: true, status: "risk_blocked" as const }; }
-    const markPrice = prices[decision.symbol]; const order = buildRiskManagedPaperOrder({ decision, markPrice, account, riskPct: Number(config.riskPct), maxOpenPositions: config.maxOpenPositions });
+    const markPrice = prices[decision.symbol]; const selectedContext = contexts.find(item => item.symbol === decision.symbol); const scalping = config.strategy === PAPER_SCALPING_STRATEGY ? assessScalpingDecision({ decision, markPrice, context: selectedContext }) : { allowed: false as const, reason: "Unsupported paper-bot strategy" };
+    if (!scalping.allowed) { await completePaperBotRun({ id: started.run.id, configId: config.id, status: decision.action === "hold" ? "hold" : "risk_blocked", decision, error: scalping.reason }); return { ok: true, status: decision.action === "hold" ? "hold" as const : "risk_blocked" as const }; }
+    const order = buildRiskManagedPaperOrder({ decision, markPrice, account, riskPct: Number(config.riskPct), maxOpenPositions: config.maxOpenPositions });
     if (!order.allowed) { await completePaperBotRun({ id: started.run.id, configId: config.id, status: decision.action === "hold" ? "hold" : "risk_blocked", decision, error: order.reason }); return { ok: true, status: decision.action === "hold" ? "hold" as const : "risk_blocked" as const }; }
     const created = await createBinancePaperOrder(config.userId, { idempotencyKey: `bot-order:${started.run.runKey}`, symbol: decision.symbol, side: order.side, quantity: order.quantity, markPrice, stopPrice: order.stopPrice, targetPrice: order.targetPrice, source: "deepseek-scheduled-paper-bot" });
     await completePaperBotRun({ id: started.run.id, configId: config.id, status: "ordered", decision }); await safeAudit({ userId: config.userId, action: "binance_paper_bot_order", resource: decision.symbol, metadata: { orderId: created?.id, side: order.side, quantity: order.quantity, mode: "paper" }, requestId: started.run.runKey }); return { ok: true, status: "ordered" as const };
