@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { filterDirectorySymbols, getFreePlanUiState, getQuoteRequestSymbols, getNewsItemKey, getPriceDirection, addUniqueWatchlistSymbol, normalizeWatchlistSymbol, getAlertHistoryState, getProviderAwareScannerRows, getScannerDataNotice, getVisibleScannerRows, isFreshProviderRateLimit, isProviderAwareScannerEligible, providerQuoteToStock, quoteUniverse, shouldApplyOptionalScannerFilters } from "./Home";
+import { filterDirectorySymbols, getFreePlanUiState, getQuoteRequestSymbols, getNewsItemKey, getPriceDirection, addUniqueWatchlistSymbol, normalizeWatchlistSymbol, getAlertHistoryState, shouldNotifyProviderNews, getProviderAwareScannerRows, getScannerDataNotice, getVisibleScannerRows, isFreshProviderRateLimit, isProviderAwareScannerEligible, providerQuoteToStock, quoteUniverse, shouldApplyOptionalScannerFilters } from "./Home";
 
 describe("free-plan dashboard state", () => {
   it("shows the entitlement banner when live snapshots are unavailable", () => {
@@ -40,6 +40,14 @@ describe("free-plan dashboard state", () => {
     const symbols = [{ symbol: "AAPL", description: "Apple Inc." }, { symbol: "AMD", description: "Advanced Micro Devices" }, { symbol: "MSFT", description: "Microsoft Corporation" }];
     expect(filterDirectorySymbols(symbols, "micro")).toEqual([symbols[1], symbols[2]]);
     expect(filterDirectorySymbols(symbols, "", 2)).toHaveLength(2);
+  });
+
+  it("allows sound only for new provider-backed news", () => {
+    expect(shouldNotifyProviderNews({ demoMode: false, soundEnabled: true, hasNews: true, isError: false })).toBe(true);
+    expect(shouldNotifyProviderNews({ demoMode: true, soundEnabled: true, hasNews: true, isError: false })).toBe(false);
+    expect(shouldNotifyProviderNews({ demoMode: false, soundEnabled: false, hasNews: true, isError: false })).toBe(false);
+    expect(shouldNotifyProviderNews({ demoMode: false, soundEnabled: true, hasNews: false, isError: false })).toBe(false);
+    expect(shouldNotifyProviderNews({ demoMode: false, soundEnabled: true, hasNews: true, isError: true })).toBe(false);
   });
 
   it("tracks alert history open and empty states", () => {

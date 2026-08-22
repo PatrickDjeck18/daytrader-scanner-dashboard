@@ -308,3 +308,12 @@
 - [x] Add regression coverage for opening and closing alert history.
 - [x] Run TypeScript, full Vitest suite, production build, and browser verification.
 - [x] Save and publish the alert history repair checkpoint.
+
+# News notification sound
+
+- [x] Add an optional sound when new provider-backed news arrives.
+- [x] Respect the existing sound mute/unmute control and browser autoplay restrictions.
+- [x] Do not play sound for demo-only, unavailable, or fabricated news states.
+- [x] Add deterministic regression coverage for news notification eligibility and mute behavior.
+- [x] Run TypeScript, full Vitest suite, production build, and browser verification.
+- [x] Save and publish the news notification sound checkpoint.
