@@ -12,6 +12,7 @@ describe("production security boundaries", () => {
   it("rejects unauthenticated workspace access", async () => {
     const caller = appRouter.createCaller(baseContext(null));
     await expect(caller.workspace.watchlists()).rejects.toMatchObject({ code: "UNAUTHORIZED" });
+    await expect(caller.workspace.layouts()).rejects.toMatchObject({ code: "UNAUTHORIZED" });
   });
 
   it("rejects market paper orders without a current mark", async () => {

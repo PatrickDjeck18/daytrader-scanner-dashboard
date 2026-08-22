@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { filterDirectorySymbols, getFreePlanUiState, getQuoteRequestSymbols, getNewsItemKey, getPriceDirection, addUniqueWatchlistSymbol, normalizeWatchlistSymbol, getAlertHistoryState, shouldNotifyProviderNews, formatOptionalMetric, getSemanticMarker, getProviderAwareScannerRows, getScannerDataNotice, getVisibleScannerRows, isFreshProviderRateLimit, isProviderAwareScannerEligible, providerQuoteToStock, quoteUniverse, shouldApplyOptionalScannerFilters } from "./Home";
+import { aggregateProviderBars, defaultWorkspacePanelOrder, filterDirectorySymbols, getFreePlanUiState, getQuoteRequestSymbols, getNewsItemKey, getPriceDirection, addUniqueWatchlistSymbol, normalizeWatchlistSymbol, normalizeWorkspaceLayout, reorderWorkspacePanels, getAlertHistoryState, shouldNotifyProviderNews, formatOptionalMetric, getSemanticMarker, getProviderAwareScannerRows, getScannerDataNotice, getVisibleScannerRows, isFreshProviderRateLimit, isProviderAwareScannerEligible, providerQuoteToStock, quoteUniverse, shouldApplyOptionalScannerFilters } from "./Home";
 
 describe("free-plan dashboard state", () => {
   it("shows the entitlement banner when live snapshots are unavailable", () => {
@@ -99,5 +99,32 @@ describe("free-plan dashboard state", () => {
     expect(providerRow.price).toBe(200);
     expect(providerRow.float).toBe("—");
     expect(providerRow.rvol).toBe(0);
+  });
+
+  it("normalizes a versioned workspace while retaining every known panel and safe chart defaults", () => {
+    const layout = normalizeWorkspaceLayout({ panelOrder: ["chart", "watchlist"], hiddenPanels: ["tape", "unknown"], chartMode: "candles", chartOverlays: { volume: false } });
+    expect(layout.panelOrder.slice(0, 2)).toEqual(["chart", "watchlist"]);
+    expect(layout.panelOrder).toHaveLength(defaultWorkspacePanelOrder.length);
+    expect(layout.hiddenPanels).toEqual(["tape"]);
+    expect(layout.chartMode).toBe("candles");
+    expect(layout.chartOverlays).toEqual({ vwap: true, volume: false, levels: true });
+  });
+
+  it("reorders workspace panels without losing any panel identifiers", () => {
+    const moved = reorderWorkspacePanels(defaultWorkspacePanelOrder, "tape", "chart");
+    expect(moved.indexOf("tape")).toBe(moved.indexOf("chart") - 1);
+    expect(new Set(moved)).toEqual(new Set(defaultWorkspacePanelOrder));
+  });
+
+  it("aggregates provider bars into deterministic timeframe buckets without inventing prices", () => {
+    const bars = [
+      { timestamp: 1, open: 10, high: 12, low: 9, close: 11, volume: 5 },
+      { timestamp: 2, open: 11, high: 13, low: 10, close: 12, volume: 7 },
+      { timestamp: 3, open: 12, high: 14, low: 11, close: 13, volume: 9 },
+    ];
+    expect(aggregateProviderBars(bars, 2)).toEqual([
+      { timestamp: 1, open: 10, high: 13, low: 9, close: 12, volume: 12 },
+      { timestamp: 3, open: 12, high: 14, low: 11, close: 13, volume: 9 },
+    ]);
   });
 });

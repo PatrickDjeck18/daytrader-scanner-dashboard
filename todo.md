@@ -350,3 +350,21 @@
 - [x] Add regression coverage for Massive bars 429 behavior and client chart handling.
 - [x] Run TypeScript, full Vitest, production build, browser verification, and log inspection.
 - [x] Save and publish the verified historical-bars rate-limit repair checkpoint.
+
+# Full modernisation package
+
+- [x] Inspect reusable command, dialog, layout, and chart components before implementation.
+- [x] Add a versioned Supabase-backed workspace layout model and protected save/load API.
+- [x] Implement keyboard-first command palette actions for symbol selection, scanner switching, refresh, sound, and workspace operations.
+- [x] Implement drag-and-drop panel ordering, panel visibility controls, and saved workspace layout restoration.
+- [x] Add enhanced chart controls: line/candlestick modes, VWAP, volume, session high/low, and provider-safe unavailable states.
+- [x] Preserve paper-only execution, provider cooldowns, no-fake-data labels, and current accessibility behavior.
+- [x] Add deterministic database, command palette, layout, and chart-control regression coverage.
+- [x] Run TypeScript, full Vitest, production build, and desktop/mobile interaction verification.
+- [x] Save and publish the verified full modernisation checkpoint.
+
+# Verification follow-up: local market-query rate limit
+
+- [x] Trace the uncaught local market-query rate-limit error observed during modernisation browser verification.
+- [x] Normalize the affected public market query into a typed safe state instead of surfacing a client query error.
+- [x] Add a regression test and re-run browser log verification after restart.

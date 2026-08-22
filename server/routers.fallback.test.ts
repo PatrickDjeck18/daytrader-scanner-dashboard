@@ -47,4 +47,13 @@ describe("market.quotes fallback query path", () => {
     for (let attempt = 0; attempt < 11; attempt += 1) await expect(caller.market.bars({ symbol: "SMCI", from: "2026-08-22", to: "2026-08-22" })).resolves.toEqual([]);
     process.env.FINNHUB_API_KEY = finnhubKey;
   });
+
+  it("resolves the local symbol-directory limiter to an empty list rather than rejecting tRPC", async () => {
+    const finnhubKey = process.env.FINNHUB_API_KEY;
+    delete process.env.FINNHUB_API_KEY;
+    const rateLimitedContext: TrpcContext = { user: undefined, req: { ip: "symbols-rate-limit-test" } as TrpcContext["req"], res: {} as TrpcContext["res"] };
+    const caller = appRouter.createCaller(rateLimitedContext);
+    for (let attempt = 0; attempt < 6; attempt += 1) await expect(caller.market.symbols()).resolves.toEqual([]);
+    process.env.FINNHUB_API_KEY = finnhubKey;
+  });
 });
