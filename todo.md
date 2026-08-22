@@ -457,3 +457,8 @@
 - [x] Add deterministic authentication and ownership-isolation tests, then verify desktop and mobile protected routes.
 - [x] Resolve Supabase Auth route and user-record TypeScript errors before validating the protected dashboard flow.
 - [x] Apply and verify Supabase Auth row-level security policies through the connected PostgreSQL project after the legacy TiDB schema tool rejected PostgreSQL-only policy syntax.
+
+# Authentication copy refinement
+
+- [x] Remove the requested “Supabase-backed identity” heading and “Email/password sessions managed by Supabase Auth.” sentence from the authentication screen.
+- [x] Verify the sign-in screen remains balanced and responsive after the copy removal, then publish the update.
