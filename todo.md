@@ -472,7 +472,7 @@
  - [x] Add a DeepSeek-assisted market-analysis and paper-trade decision workflow using provider-returned Binance market context only.
  - [x] Persist paper account, bot configuration, bot decisions, simulated orders, and audit history per Supabase-authenticated user.
  - [x] Add deterministic simulation, risk-limit, persistence, no-live-order, and DeepSeek failure-path coverage; verify protected desktop/mobile routes.
-- [ ] Implement the user-selected scheduled paper-bot mode with a managed job, idempotent runs, a pause/resume control, and no in-process timer.
+- [x] Implement the user-selected scheduled paper-bot mode with managed project-owned 1m/5m/15m jobs, per-user pause/resume, per-account idempotent runs, and no in-process timer.
  - [x] Apply the selected 1m, 5m, and 15m decision context, 1% per-trade risk limit, and 3% daily simulated-loss stop to every bot run.
  - [x] Resolve scheduled paper-bot TypeScript mismatches for Binance bar timestamps, quote availability, and cron callback request typing.
  - [x] Resolve the paper-bot UI ticker-price type mismatch and add the responsive paper-account/bot styles.
