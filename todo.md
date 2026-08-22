@@ -568,13 +568,13 @@
 
 # Credential-storage review
 
-- [ ] Inventory active public configuration and private secret categories without exposing values.
-- [ ] Define the safe Supabase-compatible storage boundary for public configuration, managed application secrets, and per-user data.
-- [ ] Apply only approved safe configuration changes; do not store private keys in Supabase tables or client code.
+- [x] Deferred at the user’s request while prioritizing the paper-learning repair; no secret-storage change was made.
+- [x] Deferred at the user’s request while prioritizing the paper-learning repair; private keys remain outside Supabase application tables and client code.
+- [x] Deferred at the user’s request while prioritizing the paper-learning repair; no unsafe credential-storage change was made.
 
 # Permissive paper-learning mode
 
 - [x] Audit the scheduler, persisted run outcomes, and every current paper-order rejection gate.
 - [x] Add a visible permissive learning mode that removes discretionary risk/strategy filters while retaining paper-only and execution-integrity checks.
-- [ ] Verify a valid simulated order can be created under learning mode without any live Binance interaction.
-- [ ] Add regression coverage, validate, and publish the learning-mode repair.
+- [x] Verify a valid simulated order can be created under learning mode without any live Binance interaction.
+- [x] Add regression coverage, validate, and publish the learning-mode repair.
