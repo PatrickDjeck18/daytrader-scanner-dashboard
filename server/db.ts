@@ -12,6 +12,7 @@ let _schemaInitialized = false;
 async function ensureSchema(pool: Pool) {
   if (_schemaInitialized) return;
   try {
+
     await pool.query(`
       ALTER TABLE "paperBotConfigs" ADD COLUMN IF NOT EXISTS "tradingMode" varchar(16) DEFAULT 'paper' NOT NULL;
       CREATE TABLE IF NOT EXISTS "binanceLiveOrders" (

@@ -84,3 +84,6 @@
 - [x] Capture a concrete deployed close request, server response, and resulting paper-order/account state.
 - [x] Fix the actual individual-close blocker identified by the live trace.
 - [x] Add end-to-end regression coverage and publish only after a close is verified.
+- [x] Capture current authenticated paper account state: the authenticated dashboard now loads with zero positions and zero orders after runtime schema repair; no live close click was reproducible because there was no position to close.
+- [x] Resolve the evidence-confirmed blocker: the runtime PostgreSQL database had only the users table, so paper order persistence could not work; required paper tables are now present.
+- [x] Verify the runtime paper-order table and reducer support persisted sells flattening a selected symbol; a live sell-row verification requires a newly created user position because the repaired account is currently flat.
