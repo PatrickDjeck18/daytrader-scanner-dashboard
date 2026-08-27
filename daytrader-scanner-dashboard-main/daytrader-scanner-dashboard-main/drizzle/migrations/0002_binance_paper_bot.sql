@@ -1,0 +1,22 @@
+-- Applied to the selected Supabase PostgreSQL project through the Supabase migration service.
+create type public.paper_bot_run_status as enum ('started', 'hold', 'ordered', 'risk_blocked', 'error');
+create table public."binancePaperAccounts" (id serial primary key, "userId" integer not null unique, "initialCapital" numeric(18,2) not null default 10000.00, currency varchar(12) not null default 'USDT', "dailyAnchor" varchar(10) not null default '1970-01-01', "dailyStartEquity" numeric(18,2) not null default 10000.00, "createdAt" timestamp not null default now(), "updatedAt" timestamp not null default now());
+create table public."binancePaperOrders" (id serial primary key, "userId" integer not null, "accountId" integer not null, market varchar(32) not null default 'global-spot', symbol varchar(24) not null, side public.order_side not null, quantity numeric(22,8) not null, "fillPrice" numeric(22,8) not null, "stopPrice" numeric(22,8), "targetPrice" numeric(22,8), "idempotencyKey" varchar(96) not null unique, source varchar(32) not null default 'paper-bot', "createdAt" timestamp not null default now());
+create table public."paperBotConfigs" (id serial primary key, "userId" integer not null unique, market varchar(32) not null default 'global-spot', symbols text not null default '["BTCUSDT","ETHUSDT","SOLUSDT"]', "scheduleMinutes" integer not null default 5, "riskPct" numeric(6,3) not null default 1.000, "dailyLossStopPct" numeric(6,3) not null default 3.000, "maxOpenPositions" integer not null default 3, enabled integer not null default 0, "scheduleCronTaskUid" varchar(65), "lastRunAt" timestamp, "lastRunStatus" varchar(32), "lastRunError" text, "createdAt" timestamp not null default now(), "updatedAt" timestamp not null default now());
+create table public."paperBotRuns" (id serial primary key, "userId" integer not null, "configId" integer not null, "runKey" varchar(96) not null unique, status public.paper_bot_run_status not null default 'started', decision text, "marketContext" text, error text, "createdAt" timestamp not null default now(), "completedAt" timestamp);
+create index "binancePaperAccounts_userId_idx" on public."binancePaperAccounts" ("userId");
+create index "binancePaperOrders_userId_idx" on public."binancePaperOrders" ("userId");
+create index "binancePaperOrders_accountId_idx" on public."binancePaperOrders" ("accountId");
+create index "binancePaperOrders_symbol_idx" on public."binancePaperOrders" (symbol);
+create index "paperBotConfigs_userId_idx" on public."paperBotConfigs" ("userId");
+create index "paperBotConfigs_task_idx" on public."paperBotConfigs" ("scheduleCronTaskUid");
+create index "paperBotRuns_userId_idx" on public."paperBotRuns" ("userId");
+create index "paperBotRuns_configId_idx" on public."paperBotRuns" ("configId");
+alter table public."binancePaperAccounts" enable row level security;
+alter table public."binancePaperOrders" enable row level security;
+alter table public."paperBotConfigs" enable row level security;
+alter table public."paperBotRuns" enable row level security;
+create policy "auth_binance_paper_accounts_own" on public."binancePaperAccounts" for all to authenticated using ("userId" = (select id from public.users where "openId" = auth.uid()::text)) with check ("userId" = (select id from public.users where "openId" = auth.uid()::text));
+create policy "auth_binance_paper_orders_own" on public."binancePaperOrders" for all to authenticated using ("userId" = (select id from public.users where "openId" = auth.uid()::text)) with check ("userId" = (select id from public.users where "openId" = auth.uid()::text));
+create policy "auth_paper_bot_configs_own" on public."paperBotConfigs" for all to authenticated using ("userId" = (select id from public.users where "openId" = auth.uid()::text)) with check ("userId" = (select id from public.users where "openId" = auth.uid()::text));
+create policy "auth_paper_bot_runs_own" on public."paperBotRuns" for all to authenticated using ("userId" = (select id from public.users where "openId" = auth.uid()::text)) with check ("userId" = (select id from public.users where "openId" = auth.uid()::text));
