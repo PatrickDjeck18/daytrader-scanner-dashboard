@@ -298,10 +298,10 @@ export default function BinancePaperBot() {
     }
   };
 
-  const handleClosePosition = async (symbol: string) => {
+  const handleClosePosition = async (symbol: string, markPrice: number) => {
     try {
       await ensureSupabaseAccessToken();
-      await closePosition.mutateAsync({ symbol });
+      await closePosition.mutateAsync({ symbol, markPrice });
     } catch (err) {
       console.error(`[BinancePaperBot] Failed to close ${symbol}:`, err);
     }
@@ -450,7 +450,7 @@ export default function BinancePaperBot() {
                     <strong className={unrealizedPnl >= 0 ? "up" : "down"}>{money(unrealizedPnl)}</strong>
                     <small>Mark {money(position.marketPrice)}</small>
                   </div>
-                  <button type="button" className="bot-position-close" disabled={busy} onClick={() => { void handleClosePosition(position.symbol); }}>
+                  <button type="button" className="bot-position-close" disabled={busy} onClick={() => { void handleClosePosition(position.symbol, position.marketPrice); }}>
                     {closePosition.isPending ? "Closing…" : "Close position"}
                   </button>
                 </div>
@@ -514,7 +514,7 @@ export default function BinancePaperBot() {
           <button className="bot-trigger-instant" disabled={busy || parsedSymbols.length < 1} onClick={handleTriggerNow} title="Instantly trigger DeepSeek quantitative analysis on active market"><Zap size={14} className={triggerNow.isPending ? "spin" : ""} /> {triggerNow.isPending ? "Evaluating live chart…" : "⚡ Run DeepSeek Now"}</button>
           {config.data?.enabled === 1 ? <button className="bot-pause" disabled={busy} onClick={() => { void handlePauseBot(); }}><Pause size={14} /> {pause.isPending ? "Closing positions…" : "Stop / Pause Bot"}</button> : <button className="bot-enable" disabled={busy || parsedSymbols.length < 1} onClick={() => { void handleEnableBot(); }}><Play size={14} /> {isLive ? "Start Live DeepSeek Bot" : "Start scheduled simulation"}</button>}
         </div>
-        {save.error || enable.error || pause.error || triggerNow.error || resetAccount.error ? <div className="bot-error"><ShieldAlert size={14} />{save.error?.message ?? enable.error?.message ?? pause.error?.message ?? triggerNow.error?.message ?? resetAccount.error?.message}</div> : null}
+        {save.error || enable.error || closePosition.error || pause.error || triggerNow.error || resetAccount.error ? <div className="bot-error"><ShieldAlert size={14} />{save.error?.message ?? enable.error?.message ?? closePosition.error?.message ?? pause.error?.message ?? triggerNow.error?.message ?? resetAccount.error?.message}</div> : null}
       </div>
 
       <LiveScalpContext symbols={parsedSymbols} />

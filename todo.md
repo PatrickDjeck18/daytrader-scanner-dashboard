@@ -75,3 +75,6 @@
 - [x] Add regression coverage for individual close behavior and validate the production build.
 - [x] Add behavior-level tests for successful individual close, missing position rejection, and invalid mark handling.
 - [x] Add UI-level coverage that an individual Close action refreshes account and order data.
+- [x] Diagnose why individual simulated-position close requests are not completing.
+- [x] Fix the close request, persistence, and dashboard refresh path with clear user-visible errors.
+- [x] Add focused regression coverage for successful and failed individual closes, then validate and publish.

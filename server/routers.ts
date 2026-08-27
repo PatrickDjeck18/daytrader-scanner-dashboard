@@ -90,11 +90,9 @@ export const appRouter = router({
   binancePaper: router({
     account: auditedProtectedProcedure.input(z.object({ prices: z.record(z.string(), z.number()).default({}) })).query(({ ctx, input }) => binancePaperAccountSummary(ctx.user.id, input.prices)),
     orders: auditedProtectedProcedure.query(({ ctx }) => listBinancePaperOrders(ctx.user.id)),
-    closePosition: auditedProtectedProcedure.input(z.object({ symbol: z.string().trim().toUpperCase().regex(/^[A-Z0-9]{5,24}$/) })).mutation(async ({ ctx, input }) => {
+    closePosition: auditedProtectedProcedure.input(z.object({ symbol: z.string().trim().toUpperCase().regex(/^[A-Z0-9]{5,24}$/), markPrice: z.number().finite().positive() })).mutation(async ({ ctx, input }) => {
       try {
-        const quote = await fetchBinanceCryptoQuote("global-spot", input.symbol);
-        const prices = quote.price && quote.price > 0 ? { [input.symbol]: quote.price } : {};
-        const result = await closeBinancePaperPosition(ctx.user.id, input.symbol, prices);
+        const result = await closeBinancePaperPosition(ctx.user.id, input.symbol, { [input.symbol]: input.markPrice });
         await safeAudit({ userId: ctx.user.id, action: "binance_paper_position_closed", resource: input.symbol, metadata: { mode: "paper", quantity: result.order && "quantity" in result.order ? result.order.quantity : undefined }, requestId: requestId(ctx.req) });
         return result;
       } catch (error) {
