@@ -1,0 +1,3 @@
+# One-minute cadence verification
+
+The authenticated production Binance dashboard was inspected after the user confirmed the cadence change. The cadence controls are separate from the chart interval controls: the chart interval is already 1m, while the bot cadence had remained 5m. The bot-specific cadence control was then selected explicitly by DOM order and the “Save paper settings” action was triggered. After a 1.5-second confirmation wait, the bot cadence control reported text “1m”; its class is intentionally empty because it is selected in the current form state, while the chart interval control remains independently active. The paper bot remains scheduled and paper-only.

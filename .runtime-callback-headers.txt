@@ -1,0 +1,9 @@
+HTTP/2 403 
+date: Thu, 27 Aug 2026 13:05:44 GMT
+content-type: application/json
+content-length: 44
+strict-transport-security: max-age=31536000; includeSubDomains; preload
+x-content-type-options: nosniff
+server: cloudflare
+cf-ray: a31b4a136e807ccd-DAC
+

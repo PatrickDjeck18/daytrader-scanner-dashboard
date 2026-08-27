@@ -1,0 +1,28 @@
+{
+  "count": 4,
+  "entries": [
+    {
+      "timestamp": "2026-08-27T12:03:34Z",
+      "severity": "Default",
+      "message": "[OAuth] Initialized with baseURL: https://api.manus.ai"
+    },
+    {
+      "timestamp": "2026-08-27T12:03:34Z",
+      "severity": "Default",
+      "message": "Server running on http://localhost:3000/"
+    },
+    {
+      "timestamp": "2026-08-27T12:04:22Z",
+      "severity": "Default",
+      "message": "[OAuth] Initialized with baseURL: https://api.manus.ai"
+    },
+    {
+      "timestamp": "2026-08-27T12:04:22Z",
+      "severity": "Default",
+      "message": "Server running on http://localhost:3000/"
+    }
+  ],
+  "has_more": false,
+  "oldest_time": "",
+  "project_id": "Ae7EQR33RVf39Q5WRaKzeJ"
+}
