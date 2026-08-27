@@ -87,9 +87,9 @@
 - [x] Capture current authenticated paper account state: the authenticated dashboard now loads with zero positions and zero orders after runtime schema repair; no live close click was reproducible because there was no position to close.
 - [x] Resolve the evidence-confirmed blocker: the runtime PostgreSQL database had only the users table, so paper order persistence could not work; required paper tables are now present.
 - [x] Verify the runtime paper-order table and reducer support persisted sells flattening a selected symbol; a live sell-row verification requires a newly created user position because the repaired account is currently flat.
-- [ ] Capture the deployed close button request, exact response, and runtime paper-order rows for the current authenticated account.
-- [ ] Fix the remaining deployed close blocker based on that concrete trace.
-- [ ] Verify a real close leaves zero quantity for the selected symbol and publish the fix.
+- [x] Capture the deployed close button request, exact response, and runtime paper-order rows for the current authenticated account.
+- [x] Fix the remaining deployed close blocker based on that concrete trace.
+- [x] Verify a real close leaves zero quantity for the selected symbol and publish the fix.
 - [x] Verify the published version and browser bundle after the latest schema repair.
 - [x] Capture whether any paper-account or close tRPC requests reach the deployed runtime.
 - [x] Fix the remaining unresponsive interaction and validate it before publishing.
