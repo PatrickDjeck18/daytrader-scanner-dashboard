@@ -1,0 +1,9 @@
+server/**/*
+shared/**/*
+*.ts
+*.test.ts
+drizzle.config.ts
+*.md
+.manus-logs/
+node_modules/
+.git/
