@@ -3,7 +3,7 @@
   "outputDirectory": "dist/public",
   "devCommand": "pnpm dev",
   "installCommand": "pnpm install",
-  "framework": "vite",
+  "framework": null,
   "rewrites": [
     {
       "source": "/(.*)",
@@ -38,8 +38,5 @@
         }
       ]
     }
-  ],
-  "ignore": {
-    "project": ["server/**/*", "shared/**/*", "*.ts", "*.test.ts"]
-  }
+  ]
 }

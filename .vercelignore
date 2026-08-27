@@ -1,9 +1,12 @@
 server/**/*
 shared/**/*
 *.ts
-*.test.ts
-drizzle.config.ts
+!vite.config.ts
+!vitest.config.ts
+!drizzle.config.ts
 *.md
 .manus-logs/
 node_modules/
 .git/
+*.json
+!package.json
