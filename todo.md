@@ -105,3 +105,6 @@
 - [x] Diagnose why the closed-trade counter does not increase after an individual paper close.
 - [x] Make closed-trade metrics count completed paper round trips chronologically and refresh after close.
 - [x] Add regression coverage and validate the production build for closed-trade updates.
+- [ ] Verify the existing modern-app-design-0d747 branch and clean local state.
+- [ ] Push the current dashboard project to modern-app-design-0d747 without changing main.
+- [ ] Verify the remote branch commit and provide the GitHub link.
