@@ -41,7 +41,26 @@
 - [x] Publish and deliver the verified one-minute cadence update.
 - [x] Add explicit UI copy for the +0.10% quick-profit lock and -0.18% stop-loss so HOLD and exit behavior is understandable.
 - [x] Add focused regression coverage for the visible hold/exit policy copy.
-- [ ] Persist and verify the enabled bot’s managed task binding changes from the 5-minute task to the 1-minute task after saving.
-- [ ] Observe a successful one-minute managed callback for the active bot and confirm the paper-account metrics refresh.
-- [ ] Save and publish a checkpoint after the cadence-rebinding fix.
-- [ ] Record a controlled production before-and-after check proving the authenticated paper-account summary renders the latest persisted aggregates after a managed callback.
+- [x] Persist and verify the enabled bot’s managed task binding changes from the 5-minute task to the 1-minute task after saving.
+- [x] Observe a successful one-minute managed callback for the active bot and confirm the paper-account metrics refresh.
+- [x] Save and publish a checkpoint after the cadence-rebinding fix.
+- [x] Record a controlled production before-and-after check proving the authenticated paper-account summary renders the latest persisted aggregates after a managed callback.
+- [ ] Read back the enabled paper-bot config and verify its persisted task UID matches the one-minute managed task UID.
+- [ ] Tie a confirmed one-minute heartbeat execution to the active bot and its persisted run timestamp.
+- [ ] Record a strict before/after comparison between persisted paper aggregates and the authenticated production summary cards.
+- [ ] Confirm the active dashboard still loads the five-minute cadence after the prior save attempt.
+- [ ] Persist the one-minute cadence through the authenticated save-and-rebind flow.
+- [ ] Verify the dashboard displays 1m and the active config points to the one-minute managed task.
+- [ ] Verify one-minute execution and deliver the cadence correction.
+- [ ] Inspect the current paper-bot enabled state, recent decisions, last run, and managed schedule after the cadence change.
+- [ ] Restore the paper-only simulation path if it is disabled, unbound, or blocked by an over-restrictive condition without forcing trades.
+- [ ] Validate a fresh paper decision, persisted activity, and visible simulation metrics.
+- [ ] Publish and deliver the verified no-trades resolution.
+- [ ] Compare changing paper equity with persisted fills and inspect why the enabled bot remains at two open positions.
+- [ ] Identify whether entry gates, max-position limits, or strategy conditions are correctly producing HOLD decisions.
+- [ ] Add regression coverage for mark-to-market updates without new fills and any confirmed entry-path correction.
+- [ ] Validate and publish only an evidence-based paper-trading behavior fix.
+- [x] Review the current paper-only Stop / Pause mutation and close-all-position procedure.
+- [x] Make Stop / Pause close every open simulated position before disabling the paper bot.
+- [x] Add regression coverage for close-all-then-pause ordering and paper-only behavior.
+- [x] Run validation and publish the stop-button update.

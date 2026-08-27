@@ -1,0 +1,3 @@
+## Production verification at 14:34 UTC
+
+The authenticated published `/binance` route loaded successfully after the cadence-rebinding release. The paper account showed equity `$50.45`, buying power `$1.87`, and `2 open position(s)`. A new `Simulated Sell Exit` at `$79,820.11` dated 02:30:47 PM was visible alongside earlier simulated buys, confirming persisted paper activity and an exit event. The UI showed `SCHEDULED (AUTO)` and the bot control was `Stop / Pause Bot`, indicating the bot was enabled. Live market bars and crypto news were also rendering. The cadence controls require a separate DOM check because chart interval and bot cadence both expose 1m/5m/15m buttons.

@@ -122,39 +122,26 @@ export const appRouter = router({
       }
     }),
     pauseBot: auditedProtectedProcedure.mutation(async ({ ctx }) => {
-      const config = await pauseScheduledPaperBot(ctx.user.id);
-      const isLive = config.tradingMode === "live";
-      let closedCount = 0;
-
-      if (isLive) {
-        try {
-          const liveResult = await closeAllBinanceLivePositions();
-          closedCount = liveResult.closedCount;
-        } catch (liveErr) {
-          console.warn("[BinanceLive] Error closing live positions on pause:", liveErr);
-        }
-      } else {
-        // Fetch live prices for open positions so they close at real market price
-        let livePrices: Record<string, number> = {};
-        try {
-          const { binancePaperAccountSummary: accountSummary } = await import("./db");
-          const snapshot = await accountSummary(ctx.user.id);
-          const symbols = snapshot.positions.filter(p => p.quantity > 0).map(p => p.symbol);
-          if (symbols.length) {
-            const quoteResults = await Promise.allSettled(symbols.map(s => fetchBinanceCryptoQuote("global-spot", s)));
-            for (let i = 0; i < symbols.length; i++) {
-              const r = quoteResults[i];
-              if (r.status === "fulfilled" && r.value.price && r.value.price > 0) livePrices[symbols[i]] = r.value.price;
-            }
+      // The dashboard is paper-only: close simulated positions before disabling
+      // the schedule so Stop / Pause leaves the account flat and auditable.
+      const currentConfig = await ensurePaperBotConfig(ctx.user.id);
+      let livePrices: Record<string, number> = {};
+      try {
+        const snapshot = await binancePaperAccountSummary(ctx.user.id);
+        const symbols = snapshot.positions.filter(p => p.quantity > 0).map(p => p.symbol);
+        if (symbols.length) {
+          const quoteResults = await Promise.allSettled(symbols.map(s => fetchBinanceCryptoQuote("global-spot", s)));
+          for (let i = 0; i < symbols.length; i++) {
+            const r = quoteResults[i];
+            if (r.status === "fulfilled" && r.value.price && r.value.price > 0) livePrices[symbols[i]] = r.value.price;
           }
-        } catch { /* use empty prices fallback */ }
-        // Close all open positions immediately when user clicks stop
-        const closed = await closeAllBinancePaperPositions(ctx.user.id, livePrices);
-        closedCount = closed.closed;
-      }
+        }
+      } catch { /* use average-cost fallback */ }
 
-      await safeAudit({ userId: ctx.user.id, action: isLive ? "binance_live_bot_paused" : "binance_paper_bot_paused", resource: "binance-bot", metadata: { mode: isLive ? "live" : "paper", closedPositions: closedCount }, requestId: requestId(ctx.req) });
-      return { ...config, closedPositions: closedCount };
+      const closed = await closeAllBinancePaperPositions(ctx.user.id, livePrices);
+      const config = await pauseScheduledPaperBot(ctx.user.id);
+      await safeAudit({ userId: ctx.user.id, action: "binance_paper_bot_paused", resource: "binance-bot", metadata: { mode: currentConfig.tradingMode, closedPositions: closed.closed }, requestId: requestId(ctx.req) });
+      return { ...config, closedPositions: closed.closed };
     }),
     triggerBotNow: auditedProtectedProcedure.mutation(async ({ ctx }) => {
       try {
