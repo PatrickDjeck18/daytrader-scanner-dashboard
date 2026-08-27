@@ -235,10 +235,24 @@ export default function BinancePaperBot() {
     }
   }, [config.data]);
 
-  const refresh = () => { void account.refetch(); void liveAccount.refetch(); void config.refetch(); void orders.refetch(); void liveOrders.refetch(); void runs.refetch(); void credCheck.refetch(); };
+  const refresh = async () => {
+    await Promise.all([
+      account.refetch(), liveAccount.refetch(), config.refetch(), orders.refetch(),
+      liveOrders.refetch(), runs.refetch(), credCheck.refetch(),
+    ]);
+  };
   const save = trpc.binancePaper.saveBotConfig.useMutation({ onSuccess: refresh });
   const enable = trpc.binancePaper.enableBot.useMutation({ onSuccess: refresh });
-  const pause = trpc.binancePaper.pauseBot.useMutation({ onSuccess: refresh });
+  const pause = trpc.binancePaper.pauseBot.useMutation({
+    onSuccess: async () => {
+      await refresh();
+      await Promise.all([
+        utils.binancePaper.account.invalidate(),
+        utils.binancePaper.orders.invalidate(),
+        utils.binancePaper.botConfig.invalidate(),
+      ]);
+    },
+  });
   const triggerNow = trpc.binancePaper.triggerBotNow.useMutation({ onSuccess: refresh });
   const resetAccount = trpc.binancePaper.resetAccount.useMutation({ onSuccess: refresh });
   const parsedSymbols = symbols.split(",").map(value => value.trim().toUpperCase()).filter(Boolean);
@@ -280,6 +294,15 @@ export default function BinancePaperBot() {
       refresh();
     } catch (err) {
       console.error("[BinancePaperBot] Failed to trigger bot:", err);
+    }
+  };
+
+  const handlePauseBot = async () => {
+    try {
+      await ensureSupabaseAccessToken();
+      await pause.mutateAsync();
+    } catch (err) {
+      console.error("[BinancePaperBot] Failed to stop paper bot:", err);
     }
   };
 
@@ -450,7 +473,7 @@ export default function BinancePaperBot() {
         <div className="bot-actions">
           <button className="bot-secondary" disabled={busy || parsedSymbols.length < 1} onClick={saveConfig}><CircleDollarSign size={14} /> {isLive ? "Save live settings" : "Save paper settings"}</button>
           <button className="bot-trigger-instant" disabled={busy || parsedSymbols.length < 1} onClick={handleTriggerNow} title="Instantly trigger DeepSeek quantitative analysis on active market"><Zap size={14} className={triggerNow.isPending ? "spin" : ""} /> {triggerNow.isPending ? "Evaluating live chart…" : "⚡ Run DeepSeek Now"}</button>
-          {config.data?.enabled === 1 ? <button className="bot-pause" disabled={busy} onClick={() => { void ensureSupabaseAccessToken().then(() => pause.mutate()); }}><Pause size={14} /> Stop / Pause Bot</button> : <button className="bot-enable" disabled={busy || parsedSymbols.length < 1} onClick={() => { void handleEnableBot(); }}><Play size={14} /> {isLive ? "Start Live DeepSeek Bot" : "Start scheduled simulation"}</button>}
+          {config.data?.enabled === 1 ? <button className="bot-pause" disabled={busy} onClick={() => { void handlePauseBot(); }}><Pause size={14} /> {pause.isPending ? "Closing positions…" : "Stop / Pause Bot"}</button> : <button className="bot-enable" disabled={busy || parsedSymbols.length < 1} onClick={() => { void handleEnableBot(); }}><Play size={14} /> {isLive ? "Start Live DeepSeek Bot" : "Start scheduled simulation"}</button>}
         </div>
         {save.error || enable.error || pause.error || triggerNow.error || resetAccount.error ? <div className="bot-error"><ShieldAlert size={14} />{save.error?.message ?? enable.error?.message ?? pause.error?.message ?? triggerNow.error?.message ?? resetAccount.error?.message}</div> : null}
       </div>

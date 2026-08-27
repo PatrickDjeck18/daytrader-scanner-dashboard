@@ -1,0 +1,10 @@
+/home/ubuntu/daytrader-scanner-dashboard/node_modules/.pnpm/pg-pool@3.14.0_pg@8.23.0/node_modules/pg-pool/index.js:45
+    Error.captureStackTrace(err)
+          ^
+
+Error: There was an error establishing an SSL connection
+    at /home/ubuntu/daytrader-scanner-dashboard/node_modules/.pnpm/pg-pool@3.14.0_pg@8.23.0/node_modules/pg-pool/index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async file:///home/ubuntu/daytrader-scanner-dashboard/scripts/read-active-paper-binding.mjs:5:18
+
+Node.js v22.13.0
