@@ -11,12 +11,12 @@ function readBearerToken(headers: Record<string, unknown>) {
 
 export function getSupabaseAuthConfig() {
   const url = process.env.VITE_SUPABASE_URL;
-  // Server-side token verification must use the anon key (a JWT), not the
-  // client-side publishable key (`sb_publishable_...`). The publishable key is
-  // only authorized for browser-side Auth operations; GoTrue rejects it for
-  // server-side `getUser()` calls, which surfaces as "Please login (10001)" even
-  // when the client sends a valid, non-expired access token.
-  const anonKey = process.env.SUPABASE_ANON_KEY ?? process.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+  // Server-side verification requires the legacy anon JWT that belongs to the
+  // same Supabase project as VITE_SUPABASE_URL. Do not fall back to generic
+  // injected values or the browser publishable key: either can be unrelated or
+  // rejected by GoTrue for getUser(), producing "Please login (10001)" for a
+  // valid client session.
+  const anonKey = process.env.SUPABASE_SERVER_ANON_KEY;
   return url && anonKey ? { url, publishableKey: anonKey } : undefined;
 }
 
