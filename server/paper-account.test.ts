@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { calculateBinancePaperPnl, calculatePaperPnl, simulatePaperFill } from "./db";
+import { buildBinancePaperCloseOrder, calculateBinancePaperPnl, calculatePaperPnl, simulatePaperFill } from "./db";
 
 describe("paper account P&L", () => {
   it("fills market orders at the current mark and leaves non-crossed limits resting", () => {
@@ -17,6 +17,17 @@ describe("paper account P&L", () => {
     expect(after.positions[0]).toMatchObject({ symbol: "BTCUSDT", quantity: 0.01, averageCost: 80000 });
     expect(after.unrealizedPnl).toBe(8);
     expect(after.unrealizedPnl).toBeGreaterThan(before.unrealizedPnl);
+  });
+
+  it("builds an individual close as a paper sell for the full owned quantity", () => {
+    expect(buildBinancePaperCloseOrder({ userId: 7, symbol: "BTCUSDT", quantity: 0.01234567, markPrice: 80080 })).toMatchObject({
+      symbol: "BTCUSDT", side: "sell", quantity: 0.01234567, markPrice: 80080, source: "user-close-position",
+    });
+  });
+
+  it("rejects an individual close with no quantity or invalid mark", () => {
+    expect(() => buildBinancePaperCloseOrder({ userId: 7, symbol: "BTCUSDT", quantity: 0, markPrice: 80080 })).toThrow("No open paper position");
+    expect(() => buildBinancePaperCloseOrder({ userId: 7, symbol: "BTCUSDT", quantity: 0.01, markPrice: 0 })).toThrow("No valid market price");
   });
 
   it("flattens a simulated position after a close-on-stop sell fill", () => {

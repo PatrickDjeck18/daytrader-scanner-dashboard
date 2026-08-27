@@ -70,3 +70,8 @@
 - [x] Diagnose why Stop / Pause can leave the UI showing open simulated positions and zero closed trades.
 - [x] Fix persisted close-on-stop state and invalidate/refetch the paper-account summary after stopping.
 - [x] Add regression coverage for stopped accounts showing zero open positions and updated closed-trade metrics.
+- [x] Add an individual close-position paper order mutation with ownership and position validation.
+- [x] Add a Close control to each open simulated position with current-price execution and refresh.
+- [x] Add regression coverage for individual close behavior and validate the production build.
+- [x] Add behavior-level tests for successful individual close, missing position rejection, and invalid mark handling.
+- [ ] Add UI-level coverage that an individual Close action refreshes account and order data.

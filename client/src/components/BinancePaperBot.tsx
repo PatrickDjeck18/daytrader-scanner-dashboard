@@ -243,6 +243,7 @@ export default function BinancePaperBot() {
   };
   const save = trpc.binancePaper.saveBotConfig.useMutation({ onSuccess: refresh });
   const enable = trpc.binancePaper.enableBot.useMutation({ onSuccess: refresh });
+  const closePosition = trpc.binancePaper.closePosition.useMutation({ onSuccess: refresh });
   const pause = trpc.binancePaper.pauseBot.useMutation({
     onSuccess: async () => {
       await refresh();
@@ -257,7 +258,7 @@ export default function BinancePaperBot() {
   const resetAccount = trpc.binancePaper.resetAccount.useMutation({ onSuccess: refresh });
   const parsedSymbols = symbols.split(",").map(value => value.trim().toUpperCase()).filter(Boolean);
   const status = getPaperBotDisplayState({ enabled: config.data?.enabled, lastRunStatus: config.data?.lastRunStatus, orders: activeOrders });
-  const busy = save.isPending || enable.isPending || pause.isPending || triggerNow.isPending || resetAccount.isPending;
+  const busy = save.isPending || enable.isPending || closePosition.isPending || pause.isPending || triggerNow.isPending || resetAccount.isPending;
   const currentStrategy = strategyCopy[strategy];
   const quality = useMemo(() => getPaperBotQualityStats(runs.data ?? []), [runs.data]);
   const paperInitialCapital = activeAccount && "initialCapital" in activeAccount ? activeAccount.initialCapital : undefined;
@@ -294,6 +295,15 @@ export default function BinancePaperBot() {
       refresh();
     } catch (err) {
       console.error("[BinancePaperBot] Failed to trigger bot:", err);
+    }
+  };
+
+  const handleClosePosition = async (symbol: string) => {
+    try {
+      await ensureSupabaseAccessToken();
+      await closePosition.mutateAsync({ symbol });
+    } catch (err) {
+      console.error(`[BinancePaperBot] Failed to close ${symbol}:`, err);
     }
   };
 
@@ -420,6 +430,35 @@ export default function BinancePaperBot() {
           <div><span>MAX DRAWDOWN</span><b className={metrics.maxDrawdownPct > 1 ? "down" : ""}>{metrics.maxDrawdownPct > 0 ? `${metrics.maxDrawdownPct.toFixed(2)}%` : "—"}</b><small>{isLive ? "account balance view" : `vs initial ${money(paperInitialCapital)}`}</small></div>
         </div>
       </div>
+
+      {!isLive && (activeAccount?.positions.length ?? 0) > 0 ? (
+        <div className="paper-open-positions" aria-label="Open simulated positions">
+          <div className="paper-open-positions-head">
+            <div><span className="binance-kicker">OPEN SIMULATED POSITIONS</span><b>Manage positions individually</b></div>
+            <small>Market sells use the latest public mark.</small>
+          </div>
+          <div className="paper-open-positions-grid">
+            {activeAccount?.positions.map(position => {
+              const unrealizedPnl = "unrealizedPnl" in position ? position.unrealizedPnl : 0;
+              return (
+                <div className="paper-position-row" key={position.symbol}>
+                  <div>
+                    <b>{position.symbol.replace("USDT", " / USDT")}</b>
+                    <span>{position.quantity.toLocaleString(undefined, { maximumFractionDigits: 8 })} units · Entry {money(position.averageCost)}</span>
+                  </div>
+                  <div className="paper-position-mark">
+                    <strong className={unrealizedPnl >= 0 ? "up" : "down"}>{money(unrealizedPnl)}</strong>
+                    <small>Mark {money(position.marketPrice)}</small>
+                  </div>
+                  <button type="button" className="bot-position-close" disabled={busy} onClick={() => { void handleClosePosition(position.symbol); }}>
+                    {closePosition.isPending ? "Closing…" : "Close position"}
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      ) : null}
 
       {metrics.maxDrawdownPct > 1 ? (
         <div className="paper-drawdown-warning"><ShieldAlert size={13} /><span>Drawdown {metrics.maxDrawdownPct.toFixed(2)}% detected — daily loss stop triggers at 3%</span></div>

@@ -121,6 +121,25 @@
 .bot-actions button:disabled { cursor: not-allowed; opacity: .55; }
 .bot-error { display: flex; align-items: center; gap: 6px; color: #ffb5c1; font-size: 10px; }
 
+/* Individual paper position management */
+.paper-open-positions { padding: 14px 16px; border-bottom: 1px solid #2b3139; background: #12161b; }
+.paper-open-positions-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; margin-bottom: 10px; }
+.paper-open-positions-head > div { display: grid; gap: 4px; }
+.paper-open-positions-head b { color: #eaecef; font-size: 11px; }
+.paper-open-positions-head small { color: #7f8999; font-size: 8px; }
+.paper-open-positions-grid { display: grid; gap: 7px; }
+.paper-position-row { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: 12px; padding: 10px 11px; border: 1px solid #2b3139; border-radius: 6px; background: #171c22; }
+.paper-position-row > div:first-child { display: grid; gap: 4px; min-width: 0; }
+.paper-position-row b { color: #f1f2f3; font: 800 10px ui-monospace, monospace; }
+.paper-position-row span, .paper-position-mark small { color: #7f8999; font-size: 8px; }
+.paper-position-mark { display: grid; gap: 3px; justify-items: end; }
+.paper-position-mark strong { font: 800 11px ui-monospace, monospace; }
+.bot-position-close { border: 1px solid rgba(246,70,93,.45); border-radius: 5px; color: #ffb6c0; background: rgba(143,63,87,.26); padding: 8px 10px; font: 800 8px ui-monospace, monospace; cursor: pointer; transition: background .16s ease, border-color .16s ease, transform .16s ease; }
+.bot-position-close:hover { border-color: #f6465d; background: rgba(143,63,87,.5); }
+.bot-position-close:active { transform: scale(.97); }
+.bot-position-close:disabled { cursor: not-allowed; opacity: .55; }
+@media (max-width: 600px) { .paper-open-positions-head { align-items: flex-start; flex-direction: column; gap: 5px; } .paper-position-row { grid-template-columns: minmax(0, 1fr) auto; } .paper-position-mark { grid-column: 2; grid-row: 1; } .bot-position-close { grid-column: 1 / -1; width: 100%; } }
+
 /* History & Runs */
 .paper-bot-history { padding: 16px; border-bottom: 1px solid #2b3139; }
 .paper-bot-history h3 { margin: 5px 0 0; color: #eaecef; font-size: 13px; display: flex; align-items: center; gap: 6px; }

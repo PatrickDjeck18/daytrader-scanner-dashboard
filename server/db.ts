@@ -256,6 +256,30 @@ export async function resetBinancePaperAccount(userId: number) {
   return ensureBinancePaperAccount(userId);
 }
 
+export function buildBinancePaperCloseOrder(input: { userId: number; symbol: string; quantity: number; markPrice: number }) {
+  if (!input.symbol || !/^[A-Z0-9]{5,24}$/.test(input.symbol)) throw new Error("Invalid paper position symbol");
+  if (!Number.isFinite(input.quantity) || input.quantity <= 0) throw new Error(`No open paper position for ${input.symbol}`);
+  if (!Number.isFinite(input.markPrice) || input.markPrice <= 0) throw new Error(`No valid market price available for ${input.symbol}`);
+  return {
+    idempotencyKey: `manual-close:${input.userId}:${input.symbol}:${Date.now()}`,
+    symbol: input.symbol,
+    side: "sell" as const,
+    quantity: input.quantity,
+    markPrice: input.markPrice,
+    source: "user-close-position",
+  };
+}
+
+export async function closeBinancePaperPosition(userId: number, symbol: string, prices: Record<string, number> = {}) {
+  const db = await getDb(); if (!db) throw new Error("Database unavailable");
+  const account = await binancePaperAccountSummary(userId, prices);
+  const position = account.positions.find(item => item.symbol === symbol && item.quantity > 0);
+  if (!position) throw new Error(`No open paper position for ${symbol}`);
+  const markPrice = prices[symbol] ?? position.marketPrice ?? position.averageCost;
+  const order = await createBinancePaperOrder(userId, buildBinancePaperCloseOrder({ userId, symbol, quantity: position.quantity, markPrice }));
+  return { closed: 1, order };
+}
+
 export async function closeAllBinancePaperPositions(userId: number, prices: Record<string, number> = {}) {
   const db = await getDb(); if (!db) throw new Error("Database unavailable");
   const account = await binancePaperAccountSummary(userId, prices);

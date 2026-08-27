@@ -8,7 +8,7 @@ import { z } from "zod";
 import type { MarketQuote } from "@shared/scanner";
 import { massiveNews, massiveProvider } from "./massive";
 import { finnhubNews, finnhubProvider, finnhubSymbols } from "./finnhub";
-import { addWatchlistItem, binancePaperAccountSummary, closeAllBinancePaperPositions, createAlertRule, createBacktestRun, createPaperOrder, createWatchlist, deleteAlertRule, deleteLayout, deletePreset, deleteWatchlist, deleteWatchlistItem, ensurePaperBotConfig, getProviderHealth, listAlertRules, listBacktestRuns, listBinancePaperOrders, listBinanceLiveOrders, listLayouts, listPaperBotRuns, listPaperOrders, listPresets, listWatchlistItems, listWatchlists, paperAccountSummary, resetBinancePaperAccount, saveLayout, savePaperBotConfig, savePreset } from "./db";
+import { addWatchlistItem, binancePaperAccountSummary, closeAllBinancePaperPositions, closeBinancePaperPosition, createAlertRule, createBacktestRun, createPaperOrder, createWatchlist, deleteAlertRule, deleteLayout, deletePreset, deleteWatchlist, deleteWatchlistItem, ensurePaperBotConfig, getProviderHealth, listAlertRules, listBacktestRuns, listBinancePaperOrders, listBinanceLiveOrders, listLayouts, listPaperBotRuns, listPaperOrders, listPresets, listWatchlistItems, listWatchlists, paperAccountSummary, resetBinancePaperAccount, saveLayout, savePaperBotConfig, savePreset } from "./db";
 import { validateBinanceLiveCredentials, fetchBinanceLiveAccountSummary, closeAllBinanceLivePositions } from "./binance-live";
 import { assertPaperOnlyOrder, replayBars, runScannerBacktest } from "./backtest";
 import { checkMassiveFlatFileHealth } from "./massive-flatfiles";
@@ -90,6 +90,17 @@ export const appRouter = router({
   binancePaper: router({
     account: auditedProtectedProcedure.input(z.object({ prices: z.record(z.string(), z.number()).default({}) })).query(({ ctx, input }) => binancePaperAccountSummary(ctx.user.id, input.prices)),
     orders: auditedProtectedProcedure.query(({ ctx }) => listBinancePaperOrders(ctx.user.id)),
+    closePosition: auditedProtectedProcedure.input(z.object({ symbol: z.string().trim().toUpperCase().regex(/^[A-Z0-9]{5,24}$/) })).mutation(async ({ ctx, input }) => {
+      try {
+        const quote = await fetchBinanceCryptoQuote("global-spot", input.symbol);
+        const prices = quote.price && quote.price > 0 ? { [input.symbol]: quote.price } : {};
+        const result = await closeBinancePaperPosition(ctx.user.id, input.symbol, prices);
+        await safeAudit({ userId: ctx.user.id, action: "binance_paper_position_closed", resource: input.symbol, metadata: { mode: "paper", quantity: result.order && "quantity" in result.order ? result.order.quantity : undefined }, requestId: requestId(ctx.req) });
+        return result;
+      } catch (error) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: error instanceof Error ? error.message : "Paper position could not be closed" });
+      }
+    }),
     liveOrders: auditedProtectedProcedure.query(({ ctx }) => listBinanceLiveOrders(ctx.user.id)),
     validateCredentials: auditedProtectedProcedure.query(() => validateBinanceLiveCredentials()),
     liveAccount: auditedProtectedProcedure.input(z.object({ prices: z.record(z.string(), z.number()).default({}) })).query(async ({ input }) => {
