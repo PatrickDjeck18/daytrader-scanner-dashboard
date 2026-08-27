@@ -56,6 +56,15 @@ describe("BinancePaperBot display state", () => {
     expect(source).toContain("orders.refetch()");
   });
 
+  it("counts a closed trade when persisted orders arrive newest first", () => {
+    const metrics = getPaperBotPerformanceMetrics([
+      { id: 2, createdAt: "2026-08-27T17:00:02Z", symbol: "BTCUSDT", side: "sell", fillPrice: 80_500, quantity: 0.1 },
+      { id: 1, createdAt: "2026-08-27T17:00:01Z", symbol: "BTCUSDT", side: "buy", fillPrice: 80_000, quantity: 0.1 },
+    ], 50.05, 50);
+    expect(metrics.totalTrades).toBe(1);
+    expect(metrics.attribution[0]).toMatchObject({ symbol: "BTCUSDT", trades: 1 });
+  });
+
   it("calculates accurate win rate, profit factor, and symbol attribution for closed paper trades", () => {
     const sampleOrders = [
       { symbol: "BTCUSDT", side: "buy", fillPrice: 50_000, quantity: 0.1 },

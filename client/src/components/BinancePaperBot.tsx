@@ -74,7 +74,14 @@ export type PaperBotPerformanceMetrics = {
   attribution: SymbolAttribution[];
 };
 
-export function getPaperBotPerformanceMetrics(orders: Array<{ symbol: string; side: string; fillPrice?: number | string | null; quantity?: number | string | null; status?: string }>, equity = 50, initialCapital = 50): PaperBotPerformanceMetrics {
+export function getPaperBotPerformanceMetrics(orders: Array<{ id?: number; createdAt?: Date | string; symbol: string; side: string; fillPrice?: number | string | null; quantity?: number | string | null; status?: string }>, equity = 50, initialCapital = 50): PaperBotPerformanceMetrics {
+  const chronological = orders.length > 1 && orders.some(order => order.id !== undefined || order.createdAt !== undefined)
+    ? [...orders].sort((a, b) => {
+        const aTime = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+        const bTime = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+        return aTime - bTime || (a.id ?? 0) - (b.id ?? 0);
+      })
+    : orders;
   const symbolStats: Record<string, { trades: number; wins: number; netPnl: number }> = {};
   let grossProfit = 0;
   let grossLoss = 0;
@@ -84,7 +91,7 @@ export function getPaperBotPerformanceMetrics(orders: Array<{ symbol: string; si
   // Track simulated round-trip PnL from filled paper orders
   const symbolPositions: Record<string, { totalCost: number; quantity: number }> = {};
 
-  for (const order of orders) {
+  for (const order of chronological) {
     const sym = order.symbol;
     const price = typeof order.fillPrice === "number" ? order.fillPrice : Number(order.fillPrice || 0);
     const qty = typeof order.quantity === "number" ? order.quantity : Number(order.quantity || 0);

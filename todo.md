@@ -102,3 +102,6 @@
 - [x] Review how live-account view settings are currently separated from paper bot settings.
 - [x] Make live-account display use the same symbols, strategy, cadence, and risk configuration as the paper bot without enabling live orders.
 - [x] Add regression coverage for shared settings and validate the production build.
+- [x] Diagnose why the closed-trade counter does not increase after an individual paper close.
+- [x] Make closed-trade metrics count completed paper round trips chronologically and refresh after close.
+- [x] Add regression coverage and validate the production build for closed-trade updates.
