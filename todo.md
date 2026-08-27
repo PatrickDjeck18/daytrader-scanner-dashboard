@@ -17,7 +17,13 @@
 - [x] Diagnose and fix the deployed “Please login (10001)” error without weakening authentication safeguards.
 - [x] Verify the protected-route session acceptance path with server-key and authenticated-bearer regression tests.
 - [x] Save a corrected release checkpoint for the authentication fix.
-- [ ] Trace why paper-trading buying power, position count, win rate, and closed-trade metrics remain stale.
-- [ ] Fix paper-account metric invalidation or polling without enabling live order execution.
-- [ ] Add regression coverage for refreshing paper-trading summary metrics after account activity.
-- [ ] Validate and publish the paper-trading metrics refresh fix.
+- [x] Trace why paper-trading buying power, position count, win rate, and closed-trade metrics remain stale.
+- [x] Fix paper-account metric invalidation or polling without enabling live order execution.
+- [x] Add regression coverage for managed paper-bot scheduling and task-identifier validation.
+- [x] Validate and publish the paper-trading metrics refresh fix.
+- [x] Remove the production access-control block that returns 403 before managed paper-bot callbacks reach the application.
+- [x] Confirm the first successful managed five-minute paper-bot execution and its persisted metric refresh.
+- [x] Evaluate the requested five-second paper-bot cadence against the deployed hosting and scheduler limits.
+- [x] Record that the user declined Reserved Hosting, so no five-second cadence will be implemented.
+- [x] Re-read persisted paper-bot account state after the automatic managed callback and confirm activity timestamps and order-derived metrics changed.
+- [ ] Verify in the production UI that the paper-account summary refreshes after the managed callback.
