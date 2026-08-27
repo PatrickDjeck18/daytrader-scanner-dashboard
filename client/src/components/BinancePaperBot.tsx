@@ -253,6 +253,9 @@ export default function BinancePaperBot() {
     try {
       await ensureSupabaseAccessToken();
       await save.mutateAsync({ symbols: parsedSymbols, strategy, scheduleMinutes: interval, riskPct: 1, dailyLossStopPct: 3, maxOpenPositions: 3, tradingMode });
+      if (config.data?.enabled === 1) {
+        await enable.mutateAsync({ scheduleMinutes: interval });
+      }
       refresh();
     } catch (err) {
       console.error("[BinancePaperBot] Failed to save bot config:", err);
@@ -442,7 +445,7 @@ export default function BinancePaperBot() {
           <div className="strategy-card-grid">
             {PAPER_STRATEGIES.map(item => <StrategyCard key={item} strategy={item} active={strategy === item} onClick={() => setStrategy(item)} />)}
           </div>
-          <small style={{ color: "#7f8999", fontSize: "9px", marginTop: "6px", display: "block" }}>Confidence-weighted Kelly sizing, ATR stops, and 3% daily drawdown stop active in all modes.</small>
+          <small style={{ color: "#7f8999", fontSize: "9px", marginTop: "6px", display: "block" }}>Confidence-weighted Kelly sizing, +0.10% quick-profit lock, -0.18% stop-loss, and 3% daily drawdown stop active in paper mode. The managed bot evaluates at the selected 1m/5m/15m cadence; it never forces a trade.</small>
         </div>
         <div className="bot-actions">
           <button className="bot-secondary" disabled={busy || parsedSymbols.length < 1} onClick={saveConfig}><CircleDollarSign size={14} /> {isLive ? "Save live settings" : "Save paper settings"}</button>

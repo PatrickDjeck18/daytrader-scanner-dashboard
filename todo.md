@@ -26,16 +26,22 @@
 - [x] Evaluate the requested five-second paper-bot cadence against the deployed hosting and scheduler limits.
 - [x] Record that the user declined Reserved Hosting, so no five-second cadence will be implemented.
 - [x] Re-read persisted paper-bot account state after the automatic managed callback and confirm activity timestamps and order-derived metrics changed.
-- [ ] Verify in the production UI that the paper-account summary refreshes after the managed callback.
-- [ ] Analyze the recent all-HOLD decisions and distinguish expected signal rejection from a stuck decision path.
-- [ ] Improve the paper-bot hold explanation or signal configuration without forcing simulated trades.
-- [ ] Add regression coverage for the recent hold reasons and validate the production build.
-- [ ] Publish the verified paper-bot behavior update.
-- [ ] Review the bot’s current hold, take-profit, stop-loss, and position-age rules for the requested short-hold behavior.
-- [ ] Implement a configurable small-profit paper-only exit rule without forcing trades or disabling loss protection.
-- [ ] Add regression coverage for rapid profit exits and validate the production build.
-- [ ] Publish the verified short-hold paper-bot update.
-- [ ] Confirm the active paper bot’s current schedule and managed task binding.
-- [ ] Switch the active paper-only bot from 5 minutes to the supported 1-minute cadence.
-- [ ] Verify the one-minute callback and paper-metric refresh while preserving the +0.10% profit lock and stop-loss.
-- [ ] Publish and deliver the verified one-minute cadence update.
+- [x] Verify in the production UI that the paper-account summary refreshes after the managed callback.
+- [x] Analyze the recent all-HOLD decisions and distinguish expected signal rejection from a stuck decision path.
+- [x] Improve the paper-bot hold explanation or signal configuration without forcing simulated trades.
+- [x] Add regression coverage for the recent hold reasons and validate the production build.
+- [x] Publish the verified paper-bot behavior update.
+- [x] Review the bot’s current hold, take-profit, stop-loss, and open-position age rules for the requested short-hold behavior.
+- [x] Implement a configurable small-profit paper-only exit rule without forcing trades or disabling loss protection.
+- [x] Add regression coverage for rapid profit exits and validate the production build.
+- [x] Publish the verified short-hold paper-bot update.
+- [x] Confirm the active paper bot’s current schedule and managed task binding.
+- [x] Switch the active paper-only bot from 5 minutes to the supported 1-minute cadence.
+- [x] Verify the one-minute callback and paper-metric refresh while preserving the +0.10% profit lock and stop-loss.
+- [x] Publish and deliver the verified one-minute cadence update.
+- [x] Add explicit UI copy for the +0.10% quick-profit lock and -0.18% stop-loss so HOLD and exit behavior is understandable.
+- [x] Add focused regression coverage for the visible hold/exit policy copy.
+- [ ] Persist and verify the enabled bot’s managed task binding changes from the 5-minute task to the 1-minute task after saving.
+- [ ] Observe a successful one-minute managed callback for the active bot and confirm the paper-account metrics refresh.
+- [ ] Save and publish a checkpoint after the cadence-rebinding fix.
+- [ ] Record a controlled production before-and-after check proving the authenticated paper-account summary renders the latest persisted aggregates after a managed callback.
