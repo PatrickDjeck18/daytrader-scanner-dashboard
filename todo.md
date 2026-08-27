@@ -16,4 +16,8 @@
 - [x] Record the reviewed preview evidence and accepted provider limitations in the project release verification notes.
 - [x] Diagnose and fix the deployed “Please login (10001)” error without weakening authentication safeguards.
 - [x] Verify the protected-route session acceptance path with server-key and authenticated-bearer regression tests.
-- [ ] Save a corrected release checkpoint for the authentication fix.
+- [x] Save a corrected release checkpoint for the authentication fix.
+- [ ] Trace why paper-trading buying power, position count, win rate, and closed-trade metrics remain stale.
+- [ ] Fix paper-account metric invalidation or polling without enabling live order execution.
+- [ ] Add regression coverage for refreshing paper-trading summary metrics after account activity.
+- [ ] Validate and publish the paper-trading metrics refresh fix.

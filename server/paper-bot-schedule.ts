@@ -1,76 +1,56 @@
 import type { Express } from "express";
 import { sdk } from "./_core/sdk";
-import { createHeartbeatJob } from "./_core/heartbeat";
-import { ENV } from "./_core/env";
 import { ensurePaperBotConfig, getDb, getPaperBotScheduleTask, updatePaperBotSchedule, upsertPaperBotScheduleTask } from "./db";
 import { runPaperBotsForCadenceTask } from "./paper-bot-runner";
 import { paperBotConfigs } from "../drizzle/schema";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 
 export const supportedBotIntervals = [1, 5, 15] as const;
 export const botCron = (minutes: number) => `0 */${minutes} * * * *`;
+export const managedPaperBotScheduleName = (minutes: number) => `binance-paper-bot-${minutes}m`;
+export const isManagedPaperBotTaskUid = (taskUid: string | null | undefined) => Boolean(taskUid && !taskUid.startsWith("local-cadence-"));
 
 const SCHEDULE_CALLBACK_PATH = "/api/scheduled/binance-paper-bot";
 
 /**
- * Create (or refresh) the three cadence tasks (1m / 5m / 15m).
- * If Forge Heartbeat is available, it registers the remote heartbeat jobs.
- * Otherwise, it creates reliable local cadence task identifiers.
+ * Returns the project-managed cadence tasks already bound in the dashboard
+ * database. Tasks are created once by the project owner through Heartbeat
+ * after the site is deployed, rather than using a process-local fallback.
  */
 export async function ensurePaperBotScheduleTasks(): Promise<{ intervalMinutes: number; taskUid: string }[]> {
   const results: { intervalMinutes: number; taskUid: string }[] = [];
   for (const minutes of supportedBotIntervals) {
-    try {
-      const existing = await getPaperBotScheduleTask(minutes);
-      if (existing) {
-        results.push({ intervalMinutes: minutes, taskUid: existing.taskUid });
-        continue;
-      }
-      let taskUid = `local-cadence-${minutes}m`;
-      if (ENV.forgeApiUrl && ENV.forgeApiKey) {
-        try {
-          const created = await createHeartbeatJob(
-            {
-              name: `binance-paper-bot-${minutes}m`,
-              cron: botCron(minutes),
-              path: SCHEDULE_CALLBACK_PATH,
-              method: "POST",
-              description: `Runs the DeepSeek paper-bot simulation every ${minutes} minute(s) for all enabled users.`,
-            },
-            ""
-          );
-          taskUid = created.taskUid;
-        } catch (forgeErr) {
-          console.warn(`[PaperBotSchedule] Forge heartbeat unavailable for ${minutes}m, using local fallback:`, forgeErr instanceof Error ? forgeErr.message : forgeErr);
-        }
-      }
-      const saved = await upsertPaperBotScheduleTask(minutes, taskUid);
-      if (saved) {
-        results.push({ intervalMinutes: minutes, taskUid: saved.taskUid });
-      }
-    } catch (error) {
-      console.warn(`[PaperBotSchedule] Failed to seed ${minutes}m schedule task:`, error instanceof Error ? error.message : error);
+    const existing = await getPaperBotScheduleTask(minutes);
+    if (existing && isManagedPaperBotTaskUid(existing.taskUid)) {
+      results.push({ intervalMinutes: minutes, taskUid: existing.taskUid });
     }
   }
   return results;
+}
+
+/** Binds an owner-created managed task and migrates enabled bots at that cadence. */
+export async function bindManagedPaperBotSchedule(minutes: number, taskUid: string) {
+  if (!supportedBotIntervals.includes(minutes as 1 | 5 | 15)) throw new Error("Supported bot schedules are 1, 5, or 15 minutes");
+  if (!isManagedPaperBotTaskUid(taskUid)) throw new Error("A managed paper-bot task identifier is required");
+  const saved = await upsertPaperBotScheduleTask(minutes, taskUid);
+  const db = await getDb();
+  if (db) {
+    await db.update(paperBotConfigs).set({
+      scheduleCronTaskUid: taskUid,
+      lastRunStatus: "scheduled",
+      lastRunError: null,
+      updatedAt: new Date(),
+    }).where(and(eq(paperBotConfigs.enabled, 1), eq(paperBotConfigs.scheduleMinutes, minutes)));
+  }
+  return saved;
 }
 
 export async function enableScheduledPaperBot(userId: number, minutes: number) {
   if (!supportedBotIntervals.includes(minutes as 1 | 5 | 15)) throw new Error("Supported bot schedules are 1, 5, or 15 minutes");
   const config = await ensurePaperBotConfig(userId);
   let schedule = await getPaperBotScheduleTask(minutes);
-  if (!schedule) {
-    await ensurePaperBotScheduleTasks();
-    schedule = await getPaperBotScheduleTask(minutes);
-  }
-  const taskUid = schedule?.taskUid ?? `local-cadence-${minutes}m`;
-  if (!schedule) {
-    try {
-      await upsertPaperBotScheduleTask(minutes, taskUid);
-    } catch {
-      // Ignored if DB is in fallback mode
-    }
-  }
+  if (!schedule || !isManagedPaperBotTaskUid(schedule.taskUid)) throw new Error("Paper-bot scheduler is not ready. Please retry once managed schedules are configured.");
+  const taskUid = schedule.taskUid;
 
   // Update cadence scheduleMinutes and enable the bot
   const db = await getDb();
