@@ -244,10 +244,9 @@ export default function BinancePaperBot() {
   const save = trpc.binancePaper.saveBotConfig.useMutation({ onSuccess: refresh });
   const enable = trpc.binancePaper.enableBot.useMutation({ onSuccess: refresh });
   const closePosition = trpc.binancePaper.closePosition.useMutation({
-    onSuccess: async () => {
-      await Promise.all([account.refetch(), orders.refetch()]);
-      await Promise.all([utils.binancePaper.account.invalidate(), utils.binancePaper.orders.invalidate()]);
+    onSuccess: () => {
       setClosingSymbol(null);
+      void Promise.all([account.refetch(), orders.refetch(), utils.binancePaper.account.invalidate(), utils.binancePaper.orders.invalidate()]);
     },
     onError: () => setClosingSymbol(null),
   });

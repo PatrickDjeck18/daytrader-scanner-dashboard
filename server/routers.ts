@@ -93,7 +93,7 @@ export const appRouter = router({
     closePosition: auditedProtectedProcedure.input(z.object({ symbol: z.string().trim().toUpperCase().regex(/^[A-Z0-9]{5,24}$/), markPrice: z.number().finite().positive() })).mutation(async ({ ctx, input }) => {
       try {
         const result = await closeBinancePaperPosition(ctx.user.id, input.symbol, { [input.symbol]: input.markPrice });
-        await safeAudit({ userId: ctx.user.id, action: "binance_paper_position_closed", resource: input.symbol, metadata: { mode: "paper", quantity: result.order && "quantity" in result.order ? result.order.quantity : undefined }, requestId: requestId(ctx.req) });
+        void safeAudit({ userId: ctx.user.id, action: "binance_paper_position_closed", resource: input.symbol, metadata: { mode: "paper", quantity: result.order && "quantity" in result.order ? result.order.quantity : undefined }, requestId: requestId(ctx.req) }).catch((auditError) => console.warn("[PaperClose] Audit recording failed:", auditError));
         return result;
       } catch (error) {
         throw new TRPCError({ code: "BAD_REQUEST", message: error instanceof Error ? error.message : "Paper position could not be closed" });

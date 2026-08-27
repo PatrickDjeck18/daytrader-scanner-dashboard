@@ -81,3 +81,6 @@
 - [x] Diagnose why an individual close mutation remains pending and why all position buttons show Closing.
 - [x] Use per-symbol pending state and bounded request handling with visible errors.
 - [x] Add regression coverage and publish the pending-close correction.
+- [x] Capture a concrete deployed close request, server response, and resulting paper-order/account state.
+- [x] Fix the actual individual-close blocker identified by the live trace.
+- [x] Add end-to-end regression coverage and publish only after a close is verified.
