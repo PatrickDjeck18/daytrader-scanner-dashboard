@@ -1,33 +1,358 @@
-import { useAuth } from "@/_core/hooks/useAuth";
-import { Button } from "@/components/ui/button";
-import { Loader2 } from "lucide-react";
-import { Streamdown } from 'streamdown';
+import { useEffect, useMemo, useRef, useState } from "react";
+import { trpc } from "@/lib/trpc";
+import { CommandDialog, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList, CommandSeparator, CommandShortcut } from "@/components/ui/command";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { MARKET_QUERY_OPTIONS } from "@shared/marketQuery";
+import type { MarketQuote } from "@shared/scanner";
+import {
+  Activity,
+  ArrowDown,
+  ArrowUp,
+  Bell,
+  BellOff,
+  BookOpen,
+  ChevronDown,
+  Clipboard,
+  Command,
+  Crosshair,
+  Database,
+  Eye,
+  EyeOff,
+  Gauge,
+  GripVertical,
+  LayoutGrid,
+  Maximize2,
+  Menu,
+  Mic2,
+  MoreHorizontal,
+  PanelLeft,
+  Plus,
+  Radio,
+  RefreshCw,
+  Search,
+  Save,
+  Settings2,
+  SlidersHorizontal,
+  Sparkles,
+  Star,
+  Volume2,
+  X,
+  Zap,
+} from "lucide-react";
 
-/**
- * All content in this page are only for example, replace with your own feature implementation
- * When building pages, remember your instructions in Frontend Workflow, Frontend Best Practices, Design Guide and Common Pitfalls
- */
+type Stock = {
+  symbol: string;
+  name: string;
+  price: number;
+  change: number;
+  volume: number;
+  rvol: number;
+  float: string;
+  floatM: number;
+  marketCap: string;
+  spread: number;
+  sector: string;
+  catalyst: string;
+  catalystType: string;
+  vwap: number;
+  high: number;
+  low: number;
+  premarket: number;
+  tape: string;
+  color: string;
+};
+
+type Bar = { open: number; close: number; high: number; low: number; volume: number };
+
+type AlertItem = { id: number; symbol: string; title: string; detail: string; tone: "green" | "pink" | "amber"; time: string; read: boolean };
+type WorkspacePanelId = "scanner" | "symbol" | "chart" | "news" | "watchlist" | "alerts" | "sectors" | "tape";
+type WorkspaceLayoutState = { version: 1; panelOrder: WorkspacePanelId[]; hiddenPanels: WorkspacePanelId[]; chartMode: "line" | "candles"; chartOverlays: { vwap: boolean; volume: boolean; levels: boolean } };
+type ProviderBar = { timestamp: number; open: number; high: number; low: number; close: number; volume: number };
+export const defaultWorkspacePanelOrder: WorkspacePanelId[] = ["scanner", "symbol", "chart", "news", "watchlist", "alerts", "sectors", "tape"];
+export function normalizeWorkspaceLayout(value: unknown): WorkspaceLayoutState { const candidate = value && typeof value === "object" ? value as Partial<WorkspaceLayoutState> : {}; const valid = new Set<WorkspacePanelId>(defaultWorkspacePanelOrder); const supplied = Array.isArray(candidate.panelOrder) ? candidate.panelOrder.filter((item): item is WorkspacePanelId => typeof item === "string" && valid.has(item as WorkspacePanelId)) : []; const panelOrder = Array.from(new Set<WorkspacePanelId>([...supplied, ...defaultWorkspacePanelOrder])); const hiddenPanels = Array.isArray(candidate.hiddenPanels) ? candidate.hiddenPanels.filter((item): item is WorkspacePanelId => typeof item === "string" && valid.has(item as WorkspacePanelId)) : []; const chartMode = candidate.chartMode === "candles" ? "candles" : "line"; const overlays: Partial<WorkspaceLayoutState["chartOverlays"]> = candidate.chartOverlays ?? {}; return { version: 1, panelOrder, hiddenPanels: Array.from(new Set<WorkspacePanelId>(hiddenPanels)), chartMode, chartOverlays: { vwap: overlays.vwap !== false, volume: overlays.volume !== false, levels: overlays.levels !== false } }; }
+export function reorderWorkspacePanels(order: WorkspacePanelId[], dragged: WorkspacePanelId, target: WorkspacePanelId): WorkspacePanelId[] { if (dragged === target) return order; const next = order.filter(item => item !== dragged); const index = next.indexOf(target); if (index < 0) return order; next.splice(index, 0, dragged); return next; }
+export function aggregateProviderBars(bars: ProviderBar[], bucketSize: number): ProviderBar[] { if (bucketSize <= 1) return bars; const result: ProviderBar[] = []; for (let index = 0; index < bars.length; index += bucketSize) { const group = bars.slice(index, index + bucketSize); if (!group.length) continue; result.push({ timestamp: group[0].timestamp, open: group[0].open, close: group[group.length - 1].close, high: Math.max(...group.map(item => item.high)), low: Math.min(...group.map(item => item.low)), volume: group.reduce((sum, item) => sum + item.volume, 0) }); } return result; }
+export function getAlertHistoryState(alerts: AlertItem[], open: boolean): "closed" | "open" | "empty" { return !open ? "closed" : alerts.length ? "open" : "empty"; }
+
+const seedStocks: Stock[] = [
+  { symbol: "NVDA", name: "NVIDIA Corp.", price: 182.42, change: 8.64, volume: 18.7, rvol: 4.82, float: "23.4B", floatM: 23400, marketCap: "$4.4T", spread: 0.01, sector: "Semis", catalyst: "AI infrastructure demand", catalystType: "Earnings", vwap: 178.92, high: 184.10, low: 171.88, premarket: 2.1, tape: "Aggressive buy", color: "#a78bfa" },
+  { symbol: "SMCI", name: "Super Micro Computer", price: 48.73, change: 14.21, volume: 32.9, rvol: 8.31, float: "548M", floatM: 548, marketCap: "$2.8B", spread: 0.03, sector: "Hardware", catalyst: "New data center contract", catalystType: "Contract", vwap: 44.83, high: 49.08, low: 42.61, premarket: 6.8, tape: "Block buying", color: "#38bdf8" },
+  { symbol: "IONQ", name: "IonQ, Inc.", price: 44.08, change: 11.72, volume: 21.3, rvol: 5.92, float: "219M", floatM: 219, marketCap: "$9.6B", spread: 0.02, sector: "Quantum", catalyst: "Government quantum award", catalystType: "News", vwap: 41.24, high: 45.12, low: 39.68, premarket: 3.6, tape: "Fast prints", color: "#f59e0b" },
+  { symbol: "RIVN", name: "Rivian Automotive", price: 16.32, change: 9.45, volume: 45.8, rvol: 3.76, float: "1.05B", floatM: 1050, marketCap: "$18.2B", spread: 0.01, sector: "EV", catalyst: "Delivery guidance raised", catalystType: "Guidance", vwap: 15.42, high: 16.87, low: 14.91, premarket: 4.2, tape: "Momentum", color: "#34d399" },
+  { symbol: "MARA", name: "MARA Holdings", price: 22.16, change: 7.38, volume: 39.4, rvol: 6.14, float: "354M", floatM: 354, marketCap: "$7.8B", spread: 0.02, sector: "Crypto", catalyst: "Bitcoin beta rotation", catalystType: "Theme", vwap: 21.31, high: 22.44, low: 20.56, premarket: 2.9, tape: "Steady bid", color: "#fb7185" },
+  { symbol: "BBAI", name: "BigBear.ai", price: 4.88, change: 22.41, volume: 72.6, rvol: 12.52, float: "141M", floatM: 141, marketCap: "$690M", spread: 0.01, sector: "AI Software", catalyst: "Defense AI partnership", catalystType: "Contract", vwap: 4.12, high: 5.16, low: 3.88, premarket: 8.9, tape: "Very active", color: "#fb923c" },
+  { symbol: "SOUN", name: "SoundHound AI", price: 11.27, change: 18.26, volume: 64.3, rvol: 10.44, float: "296M", floatM: 296, marketCap: "$3.4B", spread: 0.01, sector: "AI Software", catalyst: "Automotive deployment", catalystType: "News", vwap: 10.46, high: 11.58, low: 9.82, premarket: 7.1, tape: "Aggressive buy", color: "#22d3ee" },
+  { symbol: "CELH", name: "Celsius Holdings", price: 33.14, change: 6.84, volume: 11.8, rvol: 2.84, float: "224M", floatM: 224, marketCap: "$7.5B", spread: 0.02, sector: "Consumer", catalyst: "Distribution expansion", catalystType: "Earnings", vwap: 32.12, high: 34.02, low: 31.48, premarket: 1.6, tape: "Building", color: "#c084fc" },
+];
+
+const newsItems = [
+  { time: "09:16:02", symbol: "SMCI", title: "Super Micro signs multi-year AI infrastructure contract", source: "PR Newswire", type: "Contract", tone: "green" },
+  { time: "09:15:41", symbol: "IONQ", title: "IonQ awarded quantum computing research program", source: "GlobeNewswire", type: "News", tone: "blue" },
+  { time: "09:14:52", symbol: "BBAI", title: "BigBear.ai expands defense analytics partnership", source: "SEC Filing", type: "Contract", tone: "amber" },
+  { time: "09:13:08", symbol: "NVDA", title: "NVIDIA announces next-gen inference platform", source: "Company Release", type: "Earnings", tone: "purple" },
+  { time: "09:12:36", symbol: "SOUN", title: "SoundHound expands automotive voice AI deployments", source: "Benzinga", type: "News", tone: "blue" },
+  { time: "09:11:19", symbol: "MARA", title: "Crypto-linked equities lead early sector rotation", source: "Market Desk", type: "Theme", tone: "pink" },
+];
+
+const sectors = [
+  { name: "AI Software", strength: 96, breadth: "8 / 11", movers: "BBAI · SOUN", color: "#fb923c" },
+  { name: "Semiconductors", strength: 88, breadth: "14 / 18", movers: "NVDA · AMD", color: "#a78bfa" },
+  { name: "Quantum", strength: 82, breadth: "4 / 5", movers: "IONQ · QBTS", color: "#38bdf8" },
+  { name: "Crypto", strength: 71, breadth: "9 / 15", movers: "MARA · RIOT", color: "#fb7185" },
+  { name: "EV / Mobility", strength: 63, breadth: "6 / 12", movers: "RIVN · LCID", color: "#34d399" },
+];
+
+export function getQuoteRequestSymbols(selected: string) { const normalized = selected.trim().toUpperCase(); if (!normalized || quoteUniverse.includes(normalized)) return quoteUniverse; return [...quoteUniverse.slice(0, 9), normalized]; }
+export const quoteUniverse = Array.from(new Set([...seedStocks.map(item => item.symbol), "AAPL", "AMD", "AMZN", "COIN", "GOOGL", "LCID", "META", "MSFT", "MSTR", "PLTR", "QBTS", "RIOT", "TSLA"])).slice(0, 10);
+const quoteColors = ["#a78bfa", "#38bdf8", "#f59e0b", "#34d399", "#fb7185", "#fb923c", "#22d3ee", "#c084fc"];
+export function providerQuoteToStock(quote: MarketQuote, index: number): Stock { return { symbol: quote.symbol, name: `${quote.symbol} · provider quote`, price: quote.price, change: quote.changePct, volume: quote.volume / 1_000_000, rvol: 0, float: "—", floatM: 0, marketCap: "—", spread: Math.max(.01, quote.ask - quote.bid), sector: "—", catalyst: "Finnhub quote", catalystType: "Quote", vwap: quote.vwap, high: quote.sessionHigh, low: quote.sessionLow, premarket: 0, tape: "Provider quote", color: quoteColors[index % quoteColors.length] }; }
+export function getPriceDirection(change: number | null | undefined): "up" | "down" | "flat" | "unavailable" { if (change === null || change === undefined || !Number.isFinite(change)) return "unavailable"; if (change > 0) return "up"; if (change < 0) return "down"; return "flat"; }
+export function normalizeWatchlistSymbol(value: string): string { return value.trim().toUpperCase(); }
+export function addUniqueWatchlistSymbol(current: string[], value: string): { symbols: string[]; added: boolean } { const symbol = normalizeWatchlistSymbol(value); if (!/^[A-Z.\-]{1,16}$/.test(symbol) || current.includes(symbol)) return { symbols: current, added: false }; return { symbols: [...current, symbol], added: true }; }
+function formatSignedPercent(change: number): string { return `${change > 0 ? "+" : ""}${change.toFixed(2)}%`; }
+function PriceDirection({ change, value, className = "" }: { change: number | null | undefined; value: string; className?: string }) { const direction = getPriceDirection(change); const Icon = direction === "up" ? ArrowUp : direction === "down" ? ArrowDown : null; return <span className={`price-direction price-direction-${direction} ${className}`} aria-label={direction === "up" ? "Price moving higher" : direction === "down" ? "Price moving lower" : direction === "flat" ? "Price unchanged" : "Price direction unavailable"}>{Icon && <Icon size={12} strokeWidth={2.5} aria-hidden="true" />}<span>{value}</span></span>; }
+
+const scannerNames = ["Top Gainers", "High-of-Day Breakout", "Relative Volume Leaders", "Low-Float Momentum", "Pre-Market Movers", "VWAP Reclaim/Loss", "Opening Range Breakout", "Halt Monitor", "Unusual Tape Activity", "Offering/Dilution Risk"];
+const presets = ["Low-Float Gappers", "Large-Cap Momentum", "News Breakouts"];
+
+function formatVol(value: number) { return value >= 1 ? `${value.toFixed(1)}M` : `${Math.round(value * 1000)}K`; }
+export function formatOptionalMetric(value: number | string | null | undefined, suffix = "") { if (value === null || value === undefined || value === "—" || (typeof value === "number" && (!Number.isFinite(value) || value === 0))) return "Unavailable"; return `${value}${suffix}`; }
+export function getSemanticMarker(type: string) { if (/news|catalyst/i.test(type)) return { label: "News catalyst", className: "marker-news" }; if (/tape|quote/i.test(type)) return { label: "Unusual tape", className: "marker-tape" }; if (/halt/i.test(type)) return { label: "Halt/resume", className: "marker-halt" }; return { label: "No active catalyst", className: "marker-neutral" }; }
+function makeBars(stock: Stock): Bar[] {
+  let price = stock.low + (stock.high - stock.low) * .46;
+  return Array.from({ length: 34 }, (_, i) => {
+    const drift = (stock.price - price) / 40 + Math.sin(i * 1.6) * (stock.price * .005);
+    const open = price;
+    const close = Math.max(stock.low * .98, Math.min(stock.high * 1.02, price + drift));
+    const high = Math.max(open, close) + stock.price * (.004 + (i % 4) * .0015);
+    const low = Math.min(open, close) - stock.price * (.004 + ((i + 1) % 3) * .0015);
+    price = close;
+    return { open, close, high, low, volume: 25 + ((i * 17) % 60) + (i > 27 ? 40 : 0) };
+  });
+}
+
+function MiniSpark({ color, flip = false }: { color: string; flip?: boolean }) {
+  return <svg viewBox="0 0 100 28" className="mini-spark" aria-hidden="true"><polyline points={flip ? "0,7 12,10 24,8 35,16 45,12 58,20 72,17 84,23 100,21" : "0,23 10,21 22,22 33,14 44,17 56,8 69,12 80,5 91,8 100,2"} fill="none" stroke={color} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" /></svg>;
+}
+
+function CandleChart({ stock }: { stock: Stock }) {
+  const bars = useMemo(() => makeBars(stock), [stock.symbol]);
+  const max = Math.max(...bars.map(b => b.high));
+  const min = Math.min(...bars.map(b => b.low));
+  const range = max - min || 1;
+  const y = (v: number) => 12 + ((max - v) / range) * 190;
+  const vwapY = y(stock.vwap);
+  const ema9 = bars.map((b, i) => b.close * .55 + stock.vwap * .45 + Math.sin(i) * stock.price * .004);
+  const ema20 = bars.map((b, i) => b.close * .35 + stock.vwap * .65 + Math.cos(i * .7) * stock.price * .006);
+  const points = (values: number[]) => values.map((v, i) => `${18 + i * 14},${y(v)}`).join(" ");
+  return <div className="chart-wrap">
+    <div className="chart-legend"><span><i className="legend-line vwap" />VWAP <b>{stock.vwap.toFixed(2)}</b></span><span><i className="legend-line ema9" />9 EMA</span><span><i className="legend-line ema20" />20 EMA</span><span className="chart-session"><i />PRE · RTH · AH</span></div>
+    <svg viewBox="0 0 500 250" preserveAspectRatio="none" className="candle-svg">
+      <defs><linearGradient id="area" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#6d5dfc" stopOpacity=".16" /><stop offset="1" stopColor="#6d5dfc" stopOpacity="0" /></linearGradient></defs>
+      {[0, 1, 2, 3, 4].map(i => <line key={i} x1="0" x2="500" y1={35 + i * 40} y2={35 + i * 40} stroke="#242944" strokeWidth="1" />)}
+      <rect x="0" y="0" width="74" height="220" fill="#24233a" opacity=".35" /><rect x="430" y="0" width="70" height="220" fill="#20262e" opacity=".5" />
+      <text x="8" y="235" className="session-label">PRE-MARKET</text><text x="210" y="235" className="session-label">REGULAR SESSION</text><text x="447" y="235" className="session-label">AH</text>
+      <polygon points={`18,${y(bars[0].close)} ${points(bars.map(b => b.close))} 480,220 18,220`} fill="url(#area)" />
+      <polyline points={points(ema20)} fill="none" stroke="#e879f9" strokeWidth="1.5" opacity=".8" /><polyline points={points(ema9)} fill="none" stroke="#fbbf24" strokeWidth="1.5" opacity=".9" />
+      <line x1="0" x2="500" y1={vwapY} y2={vwapY} stroke="#a78bfa" strokeDasharray="4 4" strokeWidth="1.5" />
+      {bars.map((b, i) => { const x = 18 + i * 14; const up = b.close >= b.open; return <g key={i}><line x1={x + 3} x2={x + 3} y1={y(b.high)} y2={y(b.low)} stroke={up ? "#37d39b" : "#f87171"} strokeWidth="1" /><rect x={x} y={Math.min(y(b.open), y(b.close))} width="6" height={Math.max(2, Math.abs(y(b.open) - y(b.close)))} fill={up ? "#37d39b" : "#f87171"} rx="1" /><rect x={x} y={222 - b.volume * .42} width="6" height={b.volume * .42} fill={up ? "#37d39b" : "#f87171"} opacity=".3" /></g>; })}
+    </svg>
+    <div className="chart-axis"><span>{(min).toFixed(2)}</span><span>{((min + max) / 2).toFixed(2)}</span><span>{max.toFixed(2)}</span></div>
+  </div>;
+}
+
+export function getFreePlanUiState(input: { demoMode: boolean; liveDataReady: boolean; planRestricted: boolean }) { return { banner: !input.demoMode && (!input.liveDataReady || input.planRestricted) ? "FREE PLAN · REAL-TIME UNAVAILABLE" : undefined, showSeededMarketValues: input.demoMode || input.liveDataReady }; }
+export function shouldApplyOptionalScannerFilters(provider?: string) { return provider !== "finnhub"; }
+export function isProviderAwareScannerEligible(stock: Pick<Stock, "price" | "floatM" | "marketCap" | "volume" | "change" | "rvol" | "spread">, thresholds: { minPrice: number; minFloat: number; maxFloat: number; minMarketCap: number; minDollarVolume: number; minChange: number; minRvol: number; maxSpread: number }, provider?: string) { const optionalKnown = shouldApplyOptionalScannerFilters(provider); const marketCap = Number(stock.marketCap.replace(/[$TB]/g, "")) * (stock.marketCap.includes("T") ? 1000000 : stock.marketCap.includes("B") ? 1000 : 1); return stock.price >= thresholds.minPrice && (!optionalKnown || (stock.floatM >= thresholds.minFloat && stock.floatM <= thresholds.maxFloat && marketCap >= thresholds.minMarketCap && Number(stock.volume) * stock.price >= thresholds.minDollarVolume && stock.rvol >= thresholds.minRvol)) && stock.change >= thresholds.minChange && stock.spread <= thresholds.maxSpread; }
+
+export function getNewsItemKey(item: { time: string; symbol: string }, index: number) { return `${item.symbol}-${item.time}-${index}`; }
+export function shouldNotifyProviderNews({ demoMode, soundEnabled, hasNews, isError }: { demoMode: boolean; soundEnabled: boolean; hasNews: boolean; isError: boolean }) { return !demoMode && soundEnabled && hasNews && !isError; }
+function playNewsNotificationTone() { if (typeof window === "undefined") return; try { const AudioContextCtor = window.AudioContext || (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext; if (!AudioContextCtor) return; const context = new AudioContextCtor(); const oscillator = context.createOscillator(); const gain = context.createGain(); oscillator.type = "sine"; oscillator.frequency.setValueAtTime(880, context.currentTime); oscillator.frequency.exponentialRampToValueAtTime(660, context.currentTime + .12); gain.gain.setValueAtTime(.0001, context.currentTime); gain.gain.exponentialRampToValueAtTime(.035, context.currentTime + .015); gain.gain.exponentialRampToValueAtTime(.0001, context.currentTime + .16); oscillator.connect(gain); gain.connect(context.destination); oscillator.start(); oscillator.stop(context.currentTime + .17); void oscillator.onended; } catch {} }
+export function filterDirectorySymbols<T extends { symbol: string; description?: string }>(symbols: T[], query: string, limit = 36) { const needle = query.trim().toUpperCase(); const matches = needle ? symbols.filter(item => `${item.symbol} ${item.description ?? ""}`.toUpperCase().includes(needle)) : symbols; return matches.slice(0, limit); }
+export function isFreshProviderRateLimit(health: { lastError?: string | null; updatedAt?: Date | string | number | null } | undefined, now = Date.now()) { if (!health?.lastError?.toLowerCase().includes("rate limit")) return false; const updatedAt = health.updatedAt instanceof Date ? health.updatedAt.getTime() : new Date(health.updatedAt ?? 0).getTime(); return Number.isFinite(updatedAt) && now - updatedAt >= 0 && now - updatedAt < 120_000; }
+export function getScannerDataNotice(scanner: string, provider: string) { return provider === "finnhub" && (scanner === "Relative Volume Leaders" || scanner === "Unusual Tape Activity") ? "RVOL UNAVAILABLE · Finnhub quote feed has no relative-volume history; ranked by percent change instead." : undefined; }
+export function getVisibleScannerRows<T>(rows: T[], showAll: boolean, limit = 12) { return showAll ? rows : rows.slice(0, limit); }
+export function getProviderAwareScannerRows(stocks: Stock[], scanner: string, thresholds: { minPrice: number; minFloat: number; maxFloat: number; minMarketCap: number; minDollarVolume: number; minChange: number; minRvol: number; maxSpread: number }, provider?: string) { const quoteOnly = !shouldApplyOptionalScannerFilters(provider); const eligible = stocks.filter(s => isProviderAwareScannerEligible(s, thresholds, provider)); const sortBy = (key: "change" | "rvol" | "volume" | "floatM" | "spread") => [...eligible].sort((a, b) => b[key] - a[key]); if (scanner === "High-of-Day Breakout" || scanner === "Opening Range Breakout") return eligible.filter(s => s.price >= s.high * (scanner === "High-of-Day Breakout" ? .985 : .97)); if (scanner === "Relative Volume Leaders" || scanner === "Unusual Tape Activity") return quoteOnly ? eligible.sort((a, b) => b.change - a.change) : sortBy("rvol"); if (scanner === "Low-Float Momentum") return (quoteOnly ? eligible : eligible.filter(s => s.floatM < 500)).sort((a, b) => b.change - a.change); if (scanner === "Pre-Market Movers") return [...eligible].sort((a, b) => b.premarket - a.premarket); if (scanner === "VWAP Reclaim/Loss") return eligible.filter(s => s.price >= s.vwap).sort((a, b) => (b.price - b.vwap) - (a.price - a.vwap)); if (scanner === "Halt Monitor") return [...eligible].filter((_, i) => i === 2).sort((a, b) => b.change - a.change); if (scanner === "Offering/Dilution Risk") return (quoteOnly ? eligible : eligible.filter(s => s.catalystType === "Earnings" || s.catalystType === "News")).sort((a, b) => a.change - b.change); return sortBy("change"); }
+
+function HistoricalBars({ bars, mode = "line", overlays = { vwap: true, volume: true, levels: true }, timeframe = "1m" }: { bars: ProviderBar[]; mode?: "line" | "candles"; overlays?: WorkspaceLayoutState["chartOverlays"]; timeframe?: "1m" | "5m" | "D" }) {
+  const bucketSize = timeframe === "5m" ? 5 : timeframe === "D" ? Math.max(1, bars.length) : 1; const recent = aggregateProviderBars(bars, bucketSize).slice(-48); const [hoveredIndex, setHoveredIndex] = useState<number | null>(null); const width = 760, height = 252, pad = 24, volumeHeight = overlays.volume ? 38 : 0, priceBottom = height - pad - volumeHeight - (overlays.volume ? 7 : 0); const lows = recent.map(b => b.low), highs = recent.map(b => b.high); const min = Math.min(...lows), max = Math.max(...highs), range = Math.max(.01, max - min); const x = (i: number) => pad + (i / Math.max(1, recent.length - 1)) * (width - pad * 2); const y = (value: number) => priceBottom - ((value - min) / range) * (priceBottom - pad); const points = recent.map((bar, i) => `${x(i)},${y(bar.close)}`).join(" "); const vwap = recent.reduce((sum, bar) => sum + bar.close * bar.volume, 0) / Math.max(1, recent.reduce((sum, bar) => sum + bar.volume, 0)); const maxVolume = Math.max(1, ...recent.map(bar => bar.volume)); const active = recent[hoveredIndex ?? recent.length - 1]; const handleMove = (event: React.PointerEvent<SVGSVGElement>) => { const box = event.currentTarget.getBoundingClientRect(); const position = Math.max(0, Math.min(1, (event.clientX - box.left) / box.width)); setHoveredIndex(Math.round(position * Math.max(0, recent.length - 1))); };
+  return <div className="history-chart"><div className="history-label">PERMITTED HISTORICAL BARS · NON-LIVE · {timeframe}</div>{recent.length === 0 ? <div className="panel-state"><BookOpen size={15} /><span>No historical bars returned for this range.</span></div> : <><div className="chart-readout"><span>{mode === "candles" ? "CANDLE OHLC" : "LINE CLOSE"}</span><b>${active.open.toFixed(2)} / ${active.high.toFixed(2)} / ${active.low.toFixed(2)} / ${active.close.toFixed(2)}</b><small>{new Date(active.timestamp).toLocaleString([], { hour: "2-digit", minute: "2-digit" })}</small></div><svg viewBox={`0 0 ${width} ${height}`} className="market-chart" role="img" aria-label="Provider-backed historical price chart" onPointerMove={handleMove} onPointerLeave={() => setHoveredIndex(null)}><defs><linearGradient id="chart-fill" x1="0" x2="0" y1="0" y2="1"><stop offset="0%" stopColor="#8175ff" stopOpacity=".28" /><stop offset="100%" stopColor="#8175ff" stopOpacity="0" /></linearGradient></defs>{[0, .25, .5, .75, 1].map(level => <line key={level} x1={pad} x2={width - pad} y1={pad + (priceBottom - pad) * level} y2={pad + (priceBottom - pad) * level} stroke="#252a40" strokeWidth="1" />)}{overlays.levels && <><line x1={pad} x2={width - pad} y1={y(max)} y2={y(max)} stroke="#45d6a5" strokeDasharray="3 4" opacity=".7" /><line x1={pad} x2={width - pad} y1={y(min)} y2={y(min)} stroke="#f2768e" strokeDasharray="3 4" opacity=".7" /></>}{overlays.vwap && <line x1={pad} x2={width - pad} y1={y(vwap)} y2={y(vwap)} stroke="#fbbf24" strokeDasharray="5 4" strokeWidth="1.5" />}{mode === "line" && <><path d={`M ${points} L ${x(recent.length - 1)},${priceBottom} L ${x(0)},${priceBottom} Z`} fill="url(#chart-fill)" /><polyline points={points} fill="none" stroke="#9a8cff" strokeWidth="2.5" strokeLinejoin="round" strokeLinecap="round" /></>}{mode === "candles" && recent.map((bar, i) => { const up = bar.close >= bar.open, candleWidth = Math.max(3, Math.min(10, (width - pad * 2) / Math.max(1, recent.length) * .62)); return <g key={bar.timestamp}><line x1={x(i)} x2={x(i)} y1={y(bar.high)} y2={y(bar.low)} stroke={up ? "#45d6a5" : "#f2768e"} strokeWidth="1.25" /><rect x={x(i) - candleWidth / 2} y={Math.min(y(bar.open), y(bar.close))} width={candleWidth} height={Math.max(2, Math.abs(y(bar.open) - y(bar.close)))} fill={up ? "#45d6a5" : "#f2768e"} rx="1" /></g>; })}{overlays.volume && recent.map((bar, i) => <rect key={`volume-${bar.timestamp}`} x={x(i) - 2} y={height - pad - (bar.volume / maxVolume) * volumeHeight} width="4" height={(bar.volume / maxVolume) * volumeHeight} fill={bar.close >= bar.open ? "#45d6a5" : "#f2768e"} opacity=".42" />)}{hoveredIndex !== null && <line x1={x(hoveredIndex)} x2={x(hoveredIndex)} y1={pad} y2={priceBottom} stroke="#c4b5fd" strokeWidth="1" opacity=".85" />}</svg><div className="chart-axis-labels"><span>${max.toFixed(2)}</span><span>${((max + min) / 2).toFixed(2)}</span><span>${min.toFixed(2)}</span></div><div className="chart-overlay-legend">{overlays.vwap && <span><i className="legend-line vwap" />VWAP ${vwap.toFixed(2)}</span>}{overlays.levels && <span>H/L ${max.toFixed(2)} / ${min.toFixed(2)}</span>}{overlays.volume && <span>VOL</span>}</div></>}</div>;
+}
+
+function Panel({ title, subtitle, children, className = "", action, style }: { title: string; subtitle?: string; children: React.ReactNode; className?: string; action?: React.ReactNode; style?: React.CSSProperties }) {
+  return <section className={`terminal-panel ${className}`} style={style}><div className="panel-head"><div><div className="panel-title"><span className="panel-dot" />{title}</div>{subtitle && <div className="panel-subtitle">{subtitle}</div>}</div><div className="panel-actions">{action}<button className="icon-btn" aria-label="Panel menu" onClick={() => {}}><MoreHorizontal size={14} /></button></div></div>{children}</section>;
+}
+
 export default function Home() {
-  // The useAuth hook provides authentication state.
-  // To implement login/logout, call logout(), or start login from an event
-  // handler: onClick={() => startLogin()} (imported from "@/const"). Never call
-  // startLogin() during render (no href={startLogin()}) — it mints a one-time
-  // nonce cookie and must run only at the moment of navigation.
-  let { user, loading, error, isAuthenticated, logout } = useAuth();
+  const [stocks, setStocks] = useState(seedStocks);
+  const [selected, setSelected] = useState("SMCI");
+  const authMe = trpc.auth.me.useQuery(undefined, { retry: false });
+  const savedLayouts = trpc.workspace.layouts.useQuery(undefined, { enabled: Boolean(authMe.data), retry: false });
+  const workspaceUtils = trpc.useUtils();
+  const saveWorkspaceMutation = trpc.workspace.saveLayout.useMutation();
+  const quoteSymbols = useMemo(() => getQuoteRequestSymbols(selected), [selected]);
+  // Massive entitlement failures are converted to typed fallback quotes server-side; do not retry them in the client.
+  const liveQuotes = trpc.market.quotes.useQuery({ symbols: quoteSymbols }, MARKET_QUERY_OPTIONS);
+  const providerHealth = trpc.market.health.useQuery(undefined, { refetchInterval: 30_000, retry: false });
+  const flatFileHealth = trpc.market.flatFileHealth.useQuery(undefined, { refetchInterval: 60_000, retry: false });
+  const [demoMode, setDemoMode] = useState(false);
+  const [historyRange] = useState(() => { const to = new Date(); const from = new Date(to); from.setDate(from.getDate() - 5); return { from: from.toISOString().slice(0, 10), to: to.toISOString().slice(0, 10) }; });
+  const delayedHistory = trpc.market.bars.useQuery({ symbol: selected, ...historyRange }, { retry: false, refetchInterval: 15 * 60_000 });
+  const delayedNews = trpc.market.news.useQuery({ ticker: selected, limit: 8 }, { refetchInterval: 15 * 60_000, retry: false });
+  const freePlanRestricted = Boolean(providerHealth.data?.lastError?.includes("Stocks Basic") || liveQuotes.data?.some(q => q.providerError?.includes("plan does not include")));
+  const displayNews = demoMode ? newsItems : (delayedNews.data ?? []).map(item => ({ time: new Date(item.published_utc).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }), symbol: item.tickers?.[0] ?? selected, title: item.title, source: item.publisher?.name ?? "Massive News", type: "News", tone: "blue" }));
+  const displaySectors = demoMode ? sectors : [];
+  const displayTape = demoMode ? stocks.slice(1, 6) : [];
+  const hasFallbackQuotes = Boolean(liveQuotes.data?.some(q => q.source === "simulated"));
+  const hasUnavailableQuotes = Boolean(liveQuotes.data?.some(q => q.source === "unavailable"));
+  const isLiveProviderSource = (source?: string) => source === "massive" || source === "finnhub";
+  const liveDataReady = Boolean(liveQuotes.data?.some(q => isLiveProviderSource(q.source)));
+  const dataUnavailable = !demoMode && !liveDataReady;
+  const feedStale = Boolean(liveQuotes.data?.some(q => isLiveProviderSource(q.source) && q.lastUpdated > 0 && Date.now() - q.lastUpdated > 60_000));
+  const feedWarning = dataUnavailable || liveQuotes.isError || hasFallbackQuotes || hasUnavailableQuotes || feedStale || providerHealth.data?.status === "degraded" || providerHealth.data?.status === "offline";
+  const freePlanUi = getFreePlanUiState({ demoMode, liveDataReady, planRestricted: freePlanRestricted });
+  const [scanner, setScanner] = useState("Top Gainers");
+  const [preset, setPreset] = useState("Low-Float Gappers");
+  const [customPresets, setCustomPresets] = useState<string[]>(() => { try { return JSON.parse(localStorage.getItem("arcane-presets") || "[]"); } catch { return []; } });
+  const [newPresetName, setNewPresetName] = useState("");
+  const [query, setQuery] = useState("");
+  const [directoryOpen, setDirectoryOpen] = useState(true);
+  const [watchlist, setWatchlist] = useState(["NVDA", "SMCI", "IONQ", "BBAI"]);
+  const [watchlistInput, setWatchlistInput] = useState("");
+  const [actionNotice, setActionNotice] = useState<string | null>(null);
+  const [watchColumns, setWatchColumns] = useState(["LAST", "CHG", "ALERT"]);
+  const [draggedTicker, setDraggedTicker] = useState<string | null>(null);
+  const [muted, setMuted] = useState<string[]>([]);
+  const [alerts, setAlerts] = useState<AlertItem[]>([
+    { id: 1, symbol: "SMCI", title: "High-of-day breakout", detail: "48.20 → 48.73 · RVOL 8.31x", tone: "green", time: "09:16:04", read: false },
+    { id: 2, symbol: "BBAI", title: "Unusual tape activity", detail: "72.6M volume · 12.52x RVOL", tone: "pink", time: "09:15:52", read: false },
+    { id: 3, symbol: "IONQ", title: "News catalyst detected", detail: "Government quantum award", tone: "amber", time: "09:14:51", read: false },
+  ]);
+  const [lastTick, setLastTick] = useState(Date.now());
+  const [alertHistoryOpen, setAlertHistoryOpen] = useState(false);
+  const notifiedNewsKeys = useRef(new Set<string>());
+  const [filterOpen, setFilterOpen] = useState(false);
+  const [live, setLive] = useState(true);
+  const [sound, setSound] = useState(true);
+  const [loading, setLoading] = useState(true);
+  const [showAllSymbols, setShowAllSymbols] = useState(false);
+  const [commandOpen, setCommandOpen] = useState(false);
+  const [workspaceOpen, setWorkspaceOpen] = useState(false);
+  const [draggedPanel, setDraggedPanel] = useState<WorkspacePanelId | null>(null);
+  const [workspaceLayout, setWorkspaceLayout] = useState<WorkspaceLayoutState>(() => normalizeWorkspaceLayout(undefined));
+  const [workspaceLoadedId, setWorkspaceLoadedId] = useState<number | null>(null);
+  const [chartTimeframe, setChartTimeframe] = useState<"1m" | "5m" | "D">("1m");
+  const availablePresets = [...presets, ...customPresets];
+  const [thresholds, setThresholds] = useState({ minPrice: "2.00", minFloat: "0", maxFloat: "5000", minMarketCap: "0", maxMarketCap: "5000000", minDollarVolume: "1", minChange: "2.00", minRvol: "2.00", maxSpread: "0.08" });
+  const symbolDirectory = trpc.market.symbols.useQuery(undefined, { staleTime: 6 * 60 * 60_000, retry: false });
+  const updateWorkspaceLayout = (updater: (current: WorkspaceLayoutState) => WorkspaceLayoutState) => setWorkspaceLayout(current => normalizeWorkspaceLayout(updater(current)));
+  const applyWorkspaceLayout = (rawLayout: unknown, name = "Workspace") => { setWorkspaceLayout(normalizeWorkspaceLayout(rawLayout)); setActionNotice(`${name} layout restored.`); };
+  const saveWorkspaceLayout = async () => { if (!authMe.data) { setActionNotice("Sign in to save workspace layouts across devices."); return; } try { await saveWorkspaceMutation.mutateAsync({ name: "Day Trader workspace", layout: workspaceLayout }); await workspaceUtils.workspace.layouts.invalidate(); setActionNotice("Workspace layout saved to Supabase."); } catch { setActionNotice("Workspace layout could not be saved. Please retry."); } };
+  const resetWorkspaceLayout = () => { setWorkspaceLayout(normalizeWorkspaceLayout(undefined)); setActionNotice("Workspace layout reset to the terminal default."); };
+  const panelHidden = (panel: WorkspacePanelId) => workspaceLayout.hiddenPanels.includes(panel);
+  const panelRank = (panel: WorkspacePanelId) => workspaceLayout.panelOrder.indexOf(panel);
+  const togglePanelVisibility = (panel: WorkspacePanelId) => updateWorkspaceLayout(current => ({ ...current, hiddenPanels: current.hiddenPanels.includes(panel) ? current.hiddenPanels.filter(item => item !== panel) : [...current.hiddenPanels, panel] }));
+  const addTickerToWatchlist = (value: string) => { const result = addUniqueWatchlistSymbol(watchlist, value); if (!result.added) { setActionNotice(value.trim() ? `${normalizeWatchlistSymbol(value)} is already watched or invalid.` : "Enter a ticker symbol first."); return false; } setWatchlist(result.symbols); setWatchlistInput(""); setActionNotice(`${normalizeWatchlistSymbol(value)} added to watchlist.`); return true; };
+  const refreshDashboard = async () => { setLoading(true); setActionNotice("Refreshing market panels…"); await Promise.allSettled([liveQuotes.refetch(), providerHealth.refetch(), flatFileHealth.refetch(), delayedHistory.refetch(), delayedNews.refetch(), symbolDirectory.refetch()]); setLoading(false); setActionNotice("Market panels refreshed."); };
+  const directoryMatches = useMemo(() => filterDirectorySymbols(symbolDirectory.data ?? [], query), [query, symbolDirectory.data]);
+  const interval = useRef<number | null>(null);
+  const alertKeys = useRef(new Set<string>());
+  const displayStocks = demoMode ? stocks : stocks.filter(s => liveQuotes.data?.some(q => q.symbol === s.symbol && isLiveProviderSource(q.source)));
+  const stock = displayStocks.find(s => s.symbol === selected) ?? displayStocks[0] ?? (demoMode ? stocks[1] : { symbol: "—", name: "Live data unavailable", price: 0, change: 0, volume: 0, rvol: 0, float: "—", floatM: 0, marketCap: "—", spread: 0, sector: "—", catalyst: "—", catalystType: "—", vwap: 0, high: 0, low: 0, premarket: 0, tape: "—", color: "#7c849f" });
+  useEffect(() => { localStorage.setItem("arcane-presets", JSON.stringify(customPresets)); const timer = window.setTimeout(() => setLoading(false), 450); return () => window.clearTimeout(timer); }, [customPresets]);
+  useEffect(() => { const saved = savedLayouts.data?.find(layout => layout.name === "Day Trader workspace") ?? savedLayouts.data?.[0]; if (!saved || saved.id === workspaceLoadedId) return; try { applyWorkspaceLayout(JSON.parse(saved.layout), saved.name); setWorkspaceLoadedId(saved.id); } catch { setActionNotice("Saved workspace layout is invalid and was not restored."); setWorkspaceLoadedId(saved.id); } }, [savedLayouts.data, workspaceLoadedId]);
+  useEffect(() => { const onKeyDown = (event: KeyboardEvent) => { const target = event.target as HTMLElement | null; const editing = target?.tagName === "INPUT" || target?.tagName === "TEXTAREA" || target?.isContentEditable; if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") { event.preventDefault(); setCommandOpen(open => !open); } else if (!editing && event.key.toLowerCase() === "r") { event.preventDefault(); void refreshDashboard(); } else if (!editing && event.key.toLowerCase() === "m") { event.preventDefault(); setSound(value => !value); } }; window.addEventListener("keydown", onKeyDown); return () => window.removeEventListener("keydown", onKeyDown); }, [refreshDashboard]);
+  useEffect(() => { const news = delayedNews.data ?? []; if (!shouldNotifyProviderNews({ demoMode, soundEnabled: sound, hasNews: news.length > 0, isError: delayedNews.isError })) return; const keys = news.map(item => `${item.published_utc}|${item.title}|${item.tickers?.join(",") ?? ""}`); const isInitialLoad = notifiedNewsKeys.current.size === 0; const hasNewNews = keys.some(key => !notifiedNewsKeys.current.has(key)); keys.forEach(key => notifiedNewsKeys.current.add(key)); if (!isInitialLoad && hasNewNews) playNewsNotificationTone(); }, [delayedNews.data, delayedNews.isError, demoMode, sound]);
+  useEffect(() => { if (!liveQuotes.data?.length) return; setStocks(current => { const existing = new Map(current.map(item => [item.symbol, item])); const next = [...current]; for (const quote of liveQuotes.data) { if (!isLiveProviderSource(quote.source) || quote.price <= 0) continue; const currentRow = existing.get(quote.symbol); const updated = currentRow ? { ...currentRow, price: quote.price, change: quote.changePct, volume: quote.volume / 1000000, rvol: quote.source === "finnhub" ? 0 : currentRow.rvol, float: quote.source === "finnhub" ? "—" : currentRow.float, floatM: quote.source === "finnhub" ? 0 : currentRow.floatM, marketCap: quote.source === "finnhub" ? "—" : currentRow.marketCap, catalyst: quote.source === "finnhub" ? "Finnhub quote" : currentRow.catalyst, catalystType: quote.source === "finnhub" ? "Quote" : currentRow.catalystType, vwap: quote.vwap, high: quote.sessionHigh, low: quote.sessionLow, spread: Math.max(.01, quote.ask - quote.bid) } : providerQuoteToStock(quote, next.length); if (currentRow) next[next.findIndex(item => item.symbol === quote.symbol)] = updated; else next.push(updated); } return next; }); }, [liveQuotes.data]);
+  const scannerRows = useMemo(() => { const minPrice = Number(thresholds.minPrice) || 0, minFloat = Number(thresholds.minFloat) || 0, maxFloat = Number(thresholds.maxFloat) || Infinity, minCap = Number(thresholds.minMarketCap) || 0, minDollar = Number(thresholds.minDollarVolume) || 0, minChange = Number(thresholds.minChange) || 0, minRvol = Number(thresholds.minRvol) || 0, maxSpread = Number(thresholds.maxSpread) || Infinity; return getProviderAwareScannerRows(displayStocks, scanner, { minPrice, minFloat, maxFloat, minMarketCap: minCap, minDollarVolume: minDollar, minChange, minRvol, maxSpread }, providerHealth.data?.provider); }, [displayStocks, providerHealth.data?.provider, scanner, thresholds]);
+  const filteredStocks = scannerRows.filter(s => !query || `${s.symbol} ${s.name}`.toLowerCase().includes(query.toLowerCase()));
+  const visibleScannerStocks = getVisibleScannerRows(filteredStocks, showAllSymbols);
 
-  // If theme is switchable in App.tsx, we can implement theme toggling like this:
-  // const { theme, toggleTheme } = useTheme();
+  useEffect(() => {
+    if (!live || !demoMode) return;
+    interval.current = window.setInterval(() => {
+      setStocks(current => current.map((s, i) => {
+        const pulse = Math.sin(Date.now() / 1700 + i) * (s.price * .0011);
+        const next = Math.max(.5, s.price + pulse);
+        const change = s.change + Math.sin(Date.now() / 4200 + i) * .08;
+        return { ...s, price: next, change, volume: s.volume + (i % 3 === 0 ? .03 : .01), high: Math.max(s.high, next) };
+      }));
+      setLastTick(Date.now());
+      const liveKey = `SMCI:hod:${Math.floor(Date.now() / 12000)}`;
+      if (!alertKeys.current.has(liveKey)) {
+        alertKeys.current.add(liveKey);
+        setAlerts(items => [{ id: Date.now(), symbol: "SMCI", title: "Live quote update", detail: "Simulated tick engine refreshed · deduped", tone: "green" as const, time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" }), read: false }, ...items].slice(0, 6));
+        if (sound) { try { const ctx = new AudioContext(); const osc = ctx.createOscillator(); const gain = ctx.createGain(); osc.frequency.value = 740; gain.gain.value = .025; osc.connect(gain); gain.connect(ctx.destination); osc.start(); osc.stop(ctx.currentTime + .06); } catch {} }
+      }
+    }, 1400);
+    return () => { if (interval.current) window.clearInterval(interval.current); };
+  }, [live, demoMode]);
 
-  return (
-    <div className="min-h-screen flex flex-col">
-      <main>
-        {/* Example: lucide-react for icons */}
-        <Loader2 className="animate-spin" />
-        Example Page
-        {/* Example: Streamdown for markdown rendering */}
-        <Streamdown>Any **markdown** content</Streamdown>
-        <Button variant="default">Example Button</Button>
-      </main>
-    </div>
-  );
+  
+  const selectedIsWatched = watchlist.includes(stock.symbol);
+  const unread = alerts.filter(a => !a.read).length;
+  const markAlertRead = (id: number) => setAlerts(items => items.map(a => a.id === id ? { ...a, read: true } : a));
+  const copyTicker = async () => { try { await navigator.clipboard?.writeText(stock.symbol); } catch {} };
+  const toggleWatch = () => { if (selectedIsWatched) { setWatchlist(list => list.filter(x => x !== stock.symbol)); setActionNotice(`${stock.symbol} removed from watchlist.`); } else addTickerToWatchlist(stock.symbol); };
+  const toggleMute = () => setMuted(list => list.includes(stock.symbol) ? list.filter(x => x !== stock.symbol) : [...list, stock.symbol]);
+  const watchlistForm = <><form className="add-watch-form" onSubmit={e => { e.preventDefault(); addTickerToWatchlist(watchlistInput); }}><input aria-label="Ticker symbol to add" value={watchlistInput} onChange={e => setWatchlistInput(e.target.value.toUpperCase())} placeholder="Add ticker" maxLength={16} /><button type="submit"><Plus size={13} /> Add symbol</button></form>{actionNotice && <div className="watchlist-notice" role="status">{actionNotice}</div>}</>;
+
+  return <div className="terminal-app">
+    <header className="topbar">
+      <div className="brand"><div className="brand-mark"><Activity size={15} /></div><div><span className="brand-name">ARCANE</span><span className="brand-product">MONITOR</span></div><button className="tiny-menu"><Menu size={13} /></button></div>
+      <div className="topbar-center"><div className="market-pill"><span className="live-dot" />NYSE <b>OPEN</b></div><div className="session-clock"><span>MARKET CLOCK</span><strong>09:18:29 <em>AM ET</em></strong></div><div className="pre-market">PRE-MARKET <b>00h 11m 31s</b></div></div>
+      <div className="topbar-right"><nav className="dashboard-switcher" aria-label="Choose a dashboard"><a href="/" aria-current="page">U.S. Equities</a><a href="/binance">Binance Crypto</a></nav><div className="feed-status"><Radio size={12} /> Feed <b>12ms</b></div><div className={`feed-status ${flatFileHealth.data?.status === "healthy" ? "healthy" : "offline"}`}><Database size={12} /> Files <b>{flatFileHealth.isLoading ? "…" : flatFileHealth.data?.status === "healthy" ? "OK" : "OFF"}</b></div><button className="top-icon" onClick={() => setCommandOpen(true)} aria-label="Open command palette"><Command size={14} /></button><button className="top-icon" onClick={() => setWorkspaceOpen(true)} aria-label="Manage workspace"><Settings2 size={14} /></button><div className="avatar">JD</div></div>
+    </header>
+    <div className="subbar"><div className="subbar-left"><span className="crumb">WORKSPACE / <b>U.S. EQUITIES</b></span><span className="divider" /><button className="layout-btn" onClick={() => setWorkspaceOpen(true)}><LayoutGrid size={12} /> {authMe.data ? "Saved layout" : "Local layout"} <ChevronDown size={12} /></button></div><div className="subbar-right"><button className="command-hint" onClick={() => setCommandOpen(true)} aria-label="Open command palette"><Command size={12} /> Commands <kbd>⌘ K</kbd></button><span className="feed-health" title={`${providerHealth.data?.provider?.toUpperCase() ?? "Provider"} · ${freePlanRestricted || dataUnavailable ? "real-time unavailable" : "real-time enabled"} · ${demoMode ? "demo mode" : "live-only"} · last tick ${new Date(lastTick).toLocaleTimeString()}`}><span className={`status-dot ${feedWarning ? "warning" : ""}`} />{feedWarning ? (freePlanRestricted || dataUnavailable ? "Feed unavailable" : hasFallbackQuotes || liveQuotes.isError ? "Provider error" : "Feed stale") : "Feed healthy"}<small>{liveQuotes.isFetching ? "checking" : live ? "connected" : "paused"}</small></span><span className="market-status-chip"><span className="status-dot" />NYSE OPEN</span></div></div>
+
+    <main className="dashboard-grid">
+      <aside className={`scanner-rail ${panelHidden("scanner") ? "workspace-hidden" : ""}`} style={{ order: panelRank("scanner") }}>
+        <div className="rail-head"><div><span className="eyebrow">SCANNER DECK</span><h1>Market pulse</h1></div><button className="icon-btn"><PanelLeft size={15} /></button></div>
+        <div className="search-box"><Search size={14} /><input placeholder="Search all U.S. symbols" value={query} onChange={e => { setQuery(e.target.value); setDirectoryOpen(true); }} /><kbd>/</kbd></div>
+        {!demoMode && directoryOpen && <div className="symbol-directory"><div className="directory-head"><span>ALL U.S. SYMBOLS</span><button onClick={() => setDirectoryOpen(false)}>{symbolDirectory.data ? `${symbolDirectory.data.length.toLocaleString()} listed` : "Loading…"} ×</button></div>{symbolDirectory.isLoading ? <div className="directory-state">Loading provider symbol directory…</div> : symbolDirectory.data?.length ? <div className="directory-list">{directoryMatches.map(item => <button key={item.symbol} className="directory-row" onClick={() => { setSelected(item.symbol); setQuery(item.symbol); setDirectoryOpen(false); }}><b>{item.symbol}</b><span>{item.description || "Common stock"}</span></button>)}{directoryMatches.length === 36 && <div className="directory-state">Refine your search to browse more listed symbols.</div>}</div> : <div className="directory-state">Symbol directory unavailable. Live quotes remain limited to the active scanner set.</div>}</div>}
+        <div className="rail-label">SCANNERS <span>10</span></div>
+        <div className="scanner-list">{scannerNames.map((name, i) => <button key={name} onClick={() => setScanner(name)} className={`scanner-item ${scanner === name ? "active" : ""}`}><span className={`scanner-icon c${i}`}><Zap size={12} /></span><span>{name}</span><strong>{["48", "12", "31", "18", "22", "14", "9", "3", "27", "5"][i]}</strong></button>)}</div>
+        <div className="rail-label preset-label">PRESETS <button className="icon-btn"><Plus size={13} /></button></div>
+        <div className="preset-list">{availablePresets.map((p, i) => <button key={p} className={`preset ${preset === p ? "active" : ""}`} onClick={() => { setPreset(p); if (p === "Low-Float Gappers") setThresholds({ ...thresholds, maxFloat: "500", minChange: "5.00", minRvol: "3.00" }); if (p === "Large-Cap Momentum") setThresholds({ ...thresholds, minMarketCap: "10000", minDollarVolume: "25" }); if (p === "News Breakouts") setThresholds({ ...thresholds, minChange: "3.00", minRvol: "2.50", minDollarVolume: "5" }); }}><span className={`preset-dot d${i}`} />{p}<MoreHorizontal size={13} /></button>)}</div>
+        <div className="rail-footer"><div className="engine-card"><div className="engine-card-head"><span className={`live-dot ${feedWarning ? "offline" : ""}`} />{dataUnavailable ? (freePlanRestricted ? "FREE PLAN · DELAYED DATA" : "LIVE DATA UNAVAILABLE") : demoMode ? "EXPLICIT DEMO FEED" : feedStale ? "STALE PROVIDER FEED" : providerHealth.data?.status === "healthy" ? `${providerHealth.data.provider?.toUpperCase() ?? "MARKET"} FEED` : "CONNECTING FEED"} <span className="engine-ms">{liveQuotes.isFetching ? "…" : "12ms"}</span></div><div className="engine-progress"><span /></div><div className="engine-stats"><span><b>8,412</b> symbols</span><span><b>1.4k</b> ticks/s</span></div></div><div className="rail-links"><button><BookOpen size={13} /> Docs</button><button><Settings2 size={13} /> Settings</button></div></div>
+      </aside>
+
+      <div className="main-column">
+        <Panel title={scanner} subtitle={`${filteredStocks.length} symbols · ${preset}`} className="scanner-panel" action={<><button className="filter-chip" onClick={() => setFilterOpen(!filterOpen)}><SlidersHorizontal size={12} /> Filters</button><button className="icon-btn" aria-label="Refresh market data" onClick={() => void refreshDashboard()} disabled={loading}><RefreshCw size={13} className={loading ? "spin" : ""} /></button></>}>
+          {providerHealth.data?.provider === "finnhub" && !demoMode && <div className="filter-note">Finnhub quotes do not include RVOL, float, market cap, or volume. Those filters are not applied until the provider supplies the required fields.{getScannerDataNotice(scanner, providerHealth.data?.provider) ? ` ${getScannerDataNotice(scanner, providerHealth.data?.provider)}` : ""}</div>}{filterOpen && <div className="filter-drawer"><div><label>Min price</label><input value={thresholds.minPrice} onChange={e => setThresholds({ ...thresholds, minPrice: e.target.value })} /></div><div><label>Min float M</label><input value={thresholds.minFloat} onChange={e => setThresholds({ ...thresholds, minFloat: e.target.value })} /></div><div><label>Max float M</label><input value={thresholds.maxFloat} onChange={e => setThresholds({ ...thresholds, maxFloat: e.target.value })} /></div><div><label>Min cap M</label><input value={thresholds.minMarketCap} onChange={e => setThresholds({ ...thresholds, minMarketCap: e.target.value })} /></div><div><label>Min $vol M</label><input value={thresholds.minDollarVolume} onChange={e => setThresholds({ ...thresholds, minDollarVolume: e.target.value })} /></div><div><label>Min chg %</label><input value={thresholds.minChange} onChange={e => setThresholds({ ...thresholds, minChange: e.target.value })} /></div><div><label>Min RVOL</label><input value={thresholds.minRvol} onChange={e => setThresholds({ ...thresholds, minRvol: e.target.value })} /></div><div><label>Max spread</label><input value={thresholds.maxSpread} onChange={e => setThresholds({ ...thresholds, maxSpread: e.target.value })} /></div><div><label>Preset name</label><input placeholder="My scan" value={newPresetName} onChange={e => setNewPresetName(e.target.value)} /></div><button className="save-preset" onClick={() => { const name = newPresetName.trim() || `Custom scan ${customPresets.length + 1}`; setCustomPresets([...customPresets, name]); setPreset(name); setNewPresetName(""); }}>Save preset</button></div>}
+          {loading ? <div className="panel-state"><RefreshCw size={15} className="spin" /><span>Connecting to {providerHealth.data?.provider === "finnhub" ? "Finnhub" : "Massive"} live feed…</span></div> : dataUnavailable ? <div className="panel-state unavailable-state"><Radio size={15} /><span>{isFreshProviderRateLimit(providerHealth.data) ? "FINNHUB RATE LIMIT: quotes are temporarily unavailable. Wait for the provider window to reset; no fabricated prices are shown." : providerHealth.data?.provider === "finnhub" ? "FINNHUB QUOTES UNAVAILABLE: no valid provider quotes are available right now; no fabricated prices are shown." : "FREE PLAN ACCESS: real-time snapshots are not included. Upgrade Massive Stocks to enable live scanning; historical bars and provider news remain available below."}</span></div> : filteredStocks.length === 0 ? <div className="panel-state"><Search size={15} /><span>No symbols match these thresholds.</span></div> : <div className="data-table-wrap"><table className="data-table"><thead><tr><th className="drag-col" /><th>SYMBOL</th><th>LAST</th><th>CHG %</th><th>RVOL</th><th>VOLUME</th><th>FLOAT</th><th>TAPE</th><th /></tr></thead><tbody>{visibleScannerStocks.map((s, i) => <tr key={s.symbol} className={selected === s.symbol ? "selected" : ""} onClick={() => setSelected(s.symbol)}><td className="drag-col"><GripVertical size={12} /></td><td><div className="symbol-cell"><span className={`symbol-dot ${getSemanticMarker(s.catalystType).className}`} title={getSemanticMarker(s.catalystType).label} /><div><b>{s.symbol}</b><small>{s.name}</small></div></div></td><td className="price-cell"><PriceDirection change={s.change} value={`$${s.price.toFixed(2)}`} /></td><td><PriceDirection change={s.change} value={formatSignedPercent(s.change)} /></td><td><span className="unsupported-metric">{formatOptionalMetric(s.rvol, "x")}</span></td><td><span className="unsupported-metric">{formatOptionalMetric(s.volume > 0 ? formatVol(s.volume) : undefined)}</span></td><td><span className="unsupported-metric">{formatOptionalMetric(s.float)}</span></td><td><MiniSpark color={getPriceDirection(s.change) === "down" ? "#f2768e" : "#45d6a5"} /></td><td><button className="row-add" aria-label={`Add ${s.symbol} to watchlist`} onClick={e => { e.stopPropagation(); addTickerToWatchlist(s.symbol); }}><Plus size={13} /></button></td></tr>)}</tbody></table></div>}
+          <div className="table-footer"><span><span className="status-dot" /> Live updates enabled</span><span>{providerHealth.data?.provider === "finnhub" ? (getScannerDataNotice(scanner, providerHealth.data?.provider) ?? "Quote-only filters active · unsupported metrics ignored") : `Showing ${Math.min(visibleScannerStocks.length, filteredStocks.length)} of ${filteredStocks.length} matches`} {filteredStocks.length > 12 && <button className="show-more-btn" onClick={() => setShowAllSymbols(value => !value)}>{showAllSymbols ? "Show less" : `Show all ${filteredStocks.length}`} </button>}</span></div><div className="marker-legend" aria-label="Symbol marker legend"><span><i className="news" /> News catalyst</span><span><i className="tape" /> Unusual tape</span><span><i className="halt" /> Halt/resume</span><span className="price-legend">Green/red = price direction</span></div>
+        </Panel>
+
+        <div className="lower-grid">
+          <Panel title="Symbol workspace" subtitle="Selected symbol · live quote" className={`detail-panel ${panelHidden("symbol") ? "workspace-hidden" : ""}`} style={{ order: panelRank("symbol") }} action={<span className="panel-kbd">⌘ K</span>}>
+            {dataUnavailable && !demoMode ? <div className="panel-state unavailable-state"><Radio size={15} /><span>Live symbol data is unavailable. No seeded price is shown.</span></div> : <>
+            <div className="symbol-hero"><div className="hero-title"><span className="eyebrow">SELECTED SYMBOL</span><span className="hero-symbol">{stock.symbol}</span><span className="hero-name">{stock.name}</span><div className="hero-badges"><span className="badge badge-purple">{stock.catalystType}</span><span className="badge badge-green">{stock.sector}</span></div></div><div className="hero-quote"><PriceDirection change={stock.change} value={`$${stock.price.toFixed(2)}`} className="hero-price" /><PriceDirection change={stock.change} value={formatSignedPercent(stock.change)} className="hero-change" /><small className={getPriceDirection(stock.change) === "down" ? "negative" : "positive"}>{stock.change > 0 ? "+" : ""}{(stock.price * stock.change / 100).toFixed(2)} session move</small></div></div>
+            <div className="metrics-grid"><div><span>VOLUME</span><b className="metric-unavailable">{formatOptionalMetric(stock.volume > 0 ? formatVol(stock.volume) : undefined)}</b></div><div><span>FLOAT</span><b className="metric-unavailable">{formatOptionalMetric(stock.float)}</b></div><div><span>RVOL</span><b className="metric-unavailable">{formatOptionalMetric(stock.rvol, "x")}</b></div><div><span>VWAP</span><b>${stock.vwap.toFixed(2)}</b></div><div><span>SESSION HIGH</span><b>${stock.high.toFixed(2)}</b></div><div><span>SESSION LOW</span><b>${stock.low.toFixed(2)}</b></div></div>
+            <div className="quote-strip"><div><span>BID</span><b>${(stock.price - stock.spread).toFixed(2)}</b></div><div className="spread"><span>SPREAD</span><b>${stock.spread.toFixed(2)}</b></div><div><span>ASK</span><b>${(stock.price + stock.spread).toFixed(2)}</b></div></div>
+            <div className="catalyst-callout"><Sparkles size={14} /><div><span>CATALYST RELEVANCE</span><b>{stock.catalyst}</b></div><span className="confidence">{getSemanticMarker(stock.catalystType).label}</span></div>
+            <div className="quick-actions"><button onClick={toggleWatch} className={selectedIsWatched ? "active" : ""}><Star size={13} fill={selectedIsWatched ? "currentColor" : "none"} />{selectedIsWatched ? "Watching" : "Add to watchlist"}</button><button onClick={toggleMute} className={muted.includes(stock.symbol) ? "active" : ""}>{muted.includes(stock.symbol) ? <BellOff size={13} /> : <Bell size={13} />}{muted.includes(stock.symbol) ? "Alerts muted" : "Mute alerts"}</button><button onClick={() => { setScanner("Top Gainers"); document.querySelector(".news-panel")?.scrollIntoView({ behavior: "smooth", block: "center" }); }}><BookOpen size={13} />Show news</button><button onClick={copyTicker}><Clipboard size={13} />Copy ticker</button>            </div></>}
+          </Panel>
+
+          <Panel title={dataUnavailable && !demoMode ? "Historical chart" : "Live chart"} subtitle={dataUnavailable && !demoMode ? `${stock.symbol} · provider bars · non-live` : `${stock.symbol} · ${chartTimeframe} provider bars`} className={`chart-panel ${panelHidden("chart") ? "workspace-hidden" : ""}`} style={{ order: panelRank("chart") }} action={<><button className={`timeframe ${chartTimeframe === "1m" ? "active" : ""}`} onClick={() => setChartTimeframe("1m")}>1m</button><button className={`timeframe ${chartTimeframe === "5m" ? "active" : ""}`} onClick={() => setChartTimeframe("5m")}>5m</button><button className={`timeframe ${chartTimeframe === "D" ? "active" : ""}`} onClick={() => setChartTimeframe("D")}>D</button><button className={`chart-mode ${workspaceLayout.chartMode === "line" ? "active" : ""}`} onClick={() => updateWorkspaceLayout(current => ({ ...current, chartMode: current.chartMode === "line" ? "candles" : "line" }))}>{workspaceLayout.chartMode === "line" ? "Line" : "Candles"}</button><button className="icon-btn" onClick={() => setWorkspaceOpen(true)} aria-label="Chart settings"><Maximize2 size={13} /></button></>}>{demoMode ? <CandleChart stock={stock} /> : delayedHistory.data?.length ? <HistoricalBars bars={delayedHistory.data.map(bar => ({ timestamp: bar.start, open: bar.open, high: bar.high, low: bar.low, close: bar.close, volume: bar.volume }))} mode={workspaceLayout.chartMode} overlays={workspaceLayout.chartOverlays} timeframe={chartTimeframe} /> : <div className="panel-state unavailable-state"><Radio size={15} /><span>Provider chart bars are unavailable or rate-limited; generated candles are withheld.</span></div>}</Panel>
+        </div>
+
+        <div className="bottom-grid">
+          <Panel title="Catalyst feed" subtitle={demoMode ? "Demo headlines · simulated" : `${providerHealth.data?.provider === "finnhub" ? "Finnhub" : "Massive"} provider news · non-live` } className={`news-panel ${panelHidden("news") ? "workspace-hidden" : ""}`} style={{ order: panelRank("news") }} action={<button className="filter-chip">All sources <ChevronDown size={11} /></button>}>{!demoMode && delayedNews.isError ? <div className="panel-state unavailable-state"><Radio size={15} /><span>{providerHealth.data?.provider === "finnhub" ? "Finnhub" : "Massive"} news is temporarily unavailable.</span></div> : displayNews.length === 0 ? <div className="panel-state"><BookOpen size={15} /><span>No provider headlines returned for {selected}.</span></div> : <div className="news-list">{displayNews.map((item, index) => (<div className="news-row" key={getNewsItemKey(item, index)}><span className="news-time">{item.time}</span><div className={`news-type ${item.tone}`} /><div className="news-copy"><div><b>{item.symbol}</b><span className={`news-tag ${item.tone}`}>{item.type}</span></div><p>{item.title}</p><small>{item.source}</small></div><button className="open-news">↗</button></div>))}</div>}</Panel>
+          <Panel title="Watchlist" subtitle={`${watchlist.length} symbols · custom view`} className={`watch-panel ${panelHidden("watchlist") ? "workspace-hidden" : ""}`} style={{ order: panelRank("watchlist") }} action={<button className="filter-chip" onClick={() => setWatchColumns(watchColumns.length === 3 ? ["LAST", "CHG"] : ["LAST", "CHG", "ALERT"])}><Settings2 size={12} /> Columns</button>}>{dataUnavailable && !demoMode ? <><div className="panel-state unavailable-state"><Radio size={15} /><span>LIVE WATCHLIST QUOTES UNAVAILABLE. You can still add symbols below.</span></div>{watchlistForm}</> : <><div className="watch-table"><div className="watch-head"><span>SYMBOL</span>{watchColumns.map(column => <span key={column}>{column}</span>)}</div>{watchlist.map(ticker => { const s = displayStocks.find(x => x.symbol === ticker); if (!s) return null; return <button draggable className="watch-row" key={ticker} onDragStart={() => setDraggedTicker(ticker)} onDragOver={e => e.preventDefault()} onDrop={() => { if (draggedTicker && draggedTicker !== ticker) { const next = [...watchlist]; const from = next.indexOf(draggedTicker), to = next.indexOf(ticker); next.splice(from, 1); next.splice(to, 0, draggedTicker); setWatchlist(next); } setDraggedTicker(null); }} onClick={() => setSelected(ticker)}><span><span className="watch-star"><Star size={11} fill="currentColor" /></span><b>{ticker}</b></span>{watchColumns.includes("LAST") && <PriceDirection change={s.change} value={`$${s.price.toFixed(2)}`} />}{watchColumns.includes("CHG") && <PriceDirection change={s.change} value={`${s.change > 0 ? "+" : ""}${s.change.toFixed(1)}%`} />}{watchColumns.includes("ALERT") && <span className={`alert-state ${muted.includes(ticker) ? "muted" : "on"}`}>{muted.includes(ticker) ? <BellOff size={11} /> : <Bell size={11} />}</span>}</button>; })}</div>{watchlistForm}</>}</Panel>
+        </div>
+      </div>
+
+      <aside className="right-column">
+        <Panel title="Alert stream" subtitle={`${unread} unread · rule engine`} className={`alert-panel ${panelHidden("alerts") ? "workspace-hidden" : ""}`} style={{ order: panelRank("alerts") }} action={<button className="sound-btn" aria-label={sound ? "Mute news notifications" : "Enable news notifications"} onClick={() => { const next = !sound; setSound(next); setActionNotice(next ? "News notification sound enabled." : "News notification sound muted."); }}>{sound ? <Volume2 size={13} /> : <BellOff size={13} />}</button>}><div className="alert-list">{alerts.map(a => <button className={`alert-row ${a.read ? "read" : ""}`} key={a.id} onClick={() => markAlertRead(a.id)}><div className={`alert-icon ${a.tone}`}>{a.tone === "green" ? <Crosshair size={13} /> : a.tone === "pink" ? <Gauge size={13} /> : <Sparkles size={13} />}</div><div className="alert-copy"><div><b>{a.symbol}</b><span>{a.time}</span></div><strong>{a.title}</strong><small>{a.detail}</small></div><span className="alert-unread" /></button>)}</div><button className="view-all" onClick={() => setAlertHistoryOpen(true)} aria-haspopup="dialog" aria-expanded={alertHistoryOpen}>View alert history <ChevronDown size={13} /></button></Panel>
+        <Panel title="Sector momentum" subtitle="Relative strength · breadth" className={`sector-panel ${panelHidden("sectors") ? "workspace-hidden" : ""}`} style={{ order: panelRank("sectors") }} action={<button className="icon-btn" aria-label="Refresh sector data" onClick={() => void refreshDashboard()} disabled={loading}><RefreshCw size={13} className={loading ? "spin" : ""} /></button>}>{dataUnavailable && !demoMode ? <div className="panel-state unavailable-state"><Radio size={15} /><span>LIVE SECTOR DATA UNAVAILABLE.</span></div> : <div className="sector-list">{displaySectors.map(s => <div className="sector-row" key={s.name}><div className="sector-top"><span><i style={{ background: s.color }} />{s.name}</span><b>{s.strength}</b></div><div className="strength-bar"><span style={{ width: `${s.strength}%`, background: s.color }} /></div><div className="sector-meta"><span>{s.breadth} advancing</span><span>{s.movers}</span></div></div>)}</div>}</Panel>
+        <Panel title="Tape monitor" subtitle="Unusual activity · live" className={`tape-panel ${panelHidden("tape") ? "workspace-hidden" : ""}`} style={{ order: panelRank("tape") }} action={<span className="live-label"><span className="live-dot" />LIVE</span>}>{dataUnavailable && !demoMode ? <div className="panel-state unavailable-state"><Radio size={15} /><span>LIVE TAPE UNAVAILABLE.</span></div> : <div className="tape-list">{displayTape.map((s, i) => <div className="tape-row" key={s.symbol}><span className="tape-time">09:{16 - i}:0{i + 2}</span><b style={{ color: s.color }}>{s.symbol}</b><span className="tape-bar"><i style={{ width: `${35 + i * 12}%`, background: s.color }} /></span><span className="tape-value">{["$2.4M", "$884K", "$621K", "$418K", "$302K"][i]}</span></div>)}</div>}</Panel>
+        <div className="right-footer"><button><Mic2 size={13} /> Voice search</button><span>{demoMode ? "Data is simulated (explicit demo mode)" : dataUnavailable ? "Live data unavailable" : `${providerHealth.data?.provider === "finnhub" ? "Finnhub" : "Massive"} live data`}</span></div>
+      </aside>
+    </main>
+    <CommandDialog open={commandOpen} onOpenChange={setCommandOpen} title="Terminal commands" description="Search symbols, scanners, and workstation actions." className="terminal-command-dialog"><CommandInput placeholder="Search symbols, scanners, or actions…" /><CommandList><CommandEmpty>No matching command.</CommandEmpty><CommandGroup heading="Symbols">{(symbolDirectory.data?.length ? directoryMatches.slice(0, 8) : displayStocks.slice(0, 8)).map(item => <CommandItem key={item.symbol} value={item.symbol} onSelect={() => { setSelected(item.symbol); setQuery(item.symbol); setDirectoryOpen(false); setCommandOpen(false); }}><Search size={14} /><span>{item.symbol}</span><CommandShortcut>Symbol</CommandShortcut></CommandItem>)}</CommandGroup><CommandSeparator /><CommandGroup heading="Scanners">{scannerNames.map(name => <CommandItem key={name} onSelect={() => { setScanner(name); setCommandOpen(false); }}><Zap size={14} /><span>{name}</span>{scanner === name && <CommandShortcut>Active</CommandShortcut>}</CommandItem>)}</CommandGroup><CommandSeparator /><CommandGroup heading="Actions"><CommandItem onSelect={() => { void refreshDashboard(); setCommandOpen(false); }}><RefreshCw size={14} /><span>Refresh market panels</span><CommandShortcut>R</CommandShortcut></CommandItem><CommandItem onSelect={() => { setSound(value => !value); setCommandOpen(false); }}><Volume2 size={14} /><span>{sound ? "Mute news sound" : "Enable news sound"}</span><CommandShortcut>M</CommandShortcut></CommandItem><CommandItem onSelect={() => { setWorkspaceOpen(true); setCommandOpen(false); }}><LayoutGrid size={14} /><span>Manage workspace</span><CommandShortcut>⌘ K</CommandShortcut></CommandItem><CommandItem onSelect={() => { void saveWorkspaceLayout(); setCommandOpen(false); }}><Save size={14} /><span>Save workspace layout</span></CommandItem></CommandGroup></CommandList></CommandDialog>
+    <Dialog open={workspaceOpen} onOpenChange={setWorkspaceOpen}><DialogContent className="workspace-dialog"><DialogHeader><DialogTitle>Workspace manager</DialogTitle><DialogDescription>Drag panels to set their priority, hide panels you do not need, and save this setup across devices.</DialogDescription></DialogHeader><div className="workspace-dialog-grid"><section><div className="workspace-section-head"><span>Panel order</span><small>Drag to reorder</small></div><div className="workspace-panel-list">{workspaceLayout.panelOrder.map(panel => <div key={panel} draggable className={`workspace-panel-row ${draggedPanel === panel ? "dragging" : ""}`} onDragStart={() => setDraggedPanel(panel)} onDragOver={event => event.preventDefault()} onDrop={() => { if (draggedPanel) updateWorkspaceLayout(current => ({ ...current, panelOrder: reorderWorkspacePanels(current.panelOrder, draggedPanel, panel) })); setDraggedPanel(null); }}><GripVertical size={14} /><span>{({ scanner: "Scanner deck", symbol: "Symbol workspace", chart: "Historical chart", news: "Catalyst feed", watchlist: "Watchlist", alerts: "Alert stream", sectors: "Sector momentum", tape: "Tape monitor" } as Record<WorkspacePanelId, string>)[panel]}</span><button className="panel-visibility" onClick={() => togglePanelVisibility(panel)} aria-label={`${panelHidden(panel) ? "Show" : "Hide"} ${panel} panel`}>{panelHidden(panel) ? <EyeOff size={14} /> : <Eye size={14} />}</button></div>)}</div></section><section><div className="workspace-section-head"><span>Chart presentation</span><small>Provider bars only</small></div><div className="workspace-controls"><div className="workspace-control"><span>Chart mode</span><div className="segmented-control"><button className={workspaceLayout.chartMode === "line" ? "active" : ""} onClick={() => updateWorkspaceLayout(current => ({ ...current, chartMode: "line" }))}>Line</button><button className={workspaceLayout.chartMode === "candles" ? "active" : ""} onClick={() => updateWorkspaceLayout(current => ({ ...current, chartMode: "candles" }))}>Candles</button></div></div>{(["vwap", "volume", "levels"] as const).map(key => <label className="workspace-toggle" key={key}><input type="checkbox" checked={workspaceLayout.chartOverlays[key]} onChange={() => updateWorkspaceLayout(current => ({ ...current, chartOverlays: { ...current.chartOverlays, [key]: !current.chartOverlays[key] } }))} /><span>{key === "vwap" ? "VWAP overlay" : key === "volume" ? "Volume bars" : "Session high / low"}</span></label>)}</div><div className="workspace-saved"><span>Saved layouts</span>{savedLayouts.isLoading ? <small>Loading saved layouts…</small> : savedLayouts.data?.length ? savedLayouts.data.map(layout => <button key={layout.id} onClick={() => { try { applyWorkspaceLayout(JSON.parse(layout.layout), layout.name); } catch { setActionNotice("Saved workspace layout is invalid and was not restored."); } }}><span>{layout.name}</span><small>{new Date(layout.updatedAt).toLocaleDateString()}</small></button>) : <small>{authMe.data ? "No saved layouts yet." : "Sign in to save layouts across devices."}</small>}</div></section></div><div className="workspace-dialog-footer"><button className="workspace-secondary" onClick={resetWorkspaceLayout}>Reset layout</button><button className="workspace-primary" onClick={() => void saveWorkspaceLayout()} disabled={saveWorkspaceMutation.isPending}><Save size={14} />{saveWorkspaceMutation.isPending ? "Saving…" : authMe.data ? "Save to Supabase" : "Sign in to save"}</button></div></DialogContent></Dialog>
+    {alertHistoryOpen && <div className="alert-history-backdrop" role="presentation" onMouseDown={event => { if (event.target === event.currentTarget) setAlertHistoryOpen(false); }}><section className="alert-history-dialog" role="dialog" aria-modal="true" aria-labelledby="alert-history-title"><div className="alert-history-head"><div><span className="eyebrow">RULE ENGINE</span><h2 id="alert-history-title">Alert history</h2></div><button className="icon-btn" aria-label="Close alert history" onClick={() => setAlertHistoryOpen(false)}><X size={14} /></button></div>{alerts.length ? <div className="alert-history-list">{alerts.map(alert => <div className={`alert-history-item ${alert.read ? "read" : ""}`} key={`history-${alert.id}`}><div className={`alert-icon ${alert.tone}`}>{alert.tone === "green" ? <Crosshair size={13} /> : alert.tone === "pink" ? <Gauge size={13} /> : <Sparkles size={13} />}</div><div className="alert-copy"><div><b>{alert.symbol}</b><span>{alert.time}</span></div><strong>{alert.title}</strong><small>{alert.detail}</small></div><span className="history-status">{alert.read ? "READ" : "UNREAD"}</span></div>)}</div> : <div className="panel-state"><Bell size={15} /><span>No alert history yet.</span></div>}<div className="alert-history-foot"><span>{alerts.length} total alert{alerts.length === 1 ? "" : "s"}</span><button className="filter-chip" onClick={() => { setAlerts(items => items.map(alert => ({ ...alert, read: true }))); setAlertHistoryOpen(false); }}>Mark all read</button></div></section></div>}
+    <div className="toast"><span className="status-dot" /> {demoMode ? "Explicit demo feed connected" : dataUnavailable ? "Live data unavailable" : `${providerHealth.data?.provider === "finnhub" ? "Finnhub" : "Massive"} feed connected`} <button><X size={13} /></button></div>
+  </div>;
 }
