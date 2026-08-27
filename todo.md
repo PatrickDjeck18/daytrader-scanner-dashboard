@@ -78,3 +78,6 @@
 - [x] Diagnose why individual simulated-position close requests are not completing.
 - [x] Fix the close request, persistence, and dashboard refresh path with clear user-visible errors.
 - [x] Add focused regression coverage for successful and failed individual closes, then validate and publish.
+- [x] Diagnose why an individual close mutation remains pending and why all position buttons show Closing.
+- [x] Use per-symbol pending state and bounded request handling with visible errors.
+- [x] Add regression coverage and publish the pending-close correction.

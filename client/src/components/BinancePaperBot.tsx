@@ -223,7 +223,7 @@ export default function BinancePaperBot() {
   const activeAccount = isLive ? (liveAccount.data ?? account.data) : account.data;
   const activeOrders = isLive ? (liveOrders.data ?? []) : (orders.data ?? []);
 
-  const [symbols, setSymbols] = useState("BTCUSDT, ETHUSDT, SOLUSDT"); const [interval, setInterval] = useState<1 | 5 | 15>(5); const [strategy, setStrategy] = useState<PaperStrategy>("scalp_momentum"); const [expandedRun, setExpandedRun] = useState<number | null>(null);
+  const [symbols, setSymbols] = useState("BTCUSDT, ETHUSDT, SOLUSDT"); const [interval, setInterval] = useState<1 | 5 | 15>(5); const [strategy, setStrategy] = useState<PaperStrategy>("scalp_momentum"); const [expandedRun, setExpandedRun] = useState<number | null>(null); const [closingSymbol, setClosingSymbol] = useState<string | null>(null); const [closeError, setCloseError] = useState<string | null>(null);
   useEffect(() => {
     if (config.data) {
       try { const parsed = JSON.parse(config.data.symbols); if (Array.isArray(parsed)) setSymbols(parsed.join(", ")); } catch { /* preserved safely */ }
@@ -243,7 +243,14 @@ export default function BinancePaperBot() {
   };
   const save = trpc.binancePaper.saveBotConfig.useMutation({ onSuccess: refresh });
   const enable = trpc.binancePaper.enableBot.useMutation({ onSuccess: refresh });
-  const closePosition = trpc.binancePaper.closePosition.useMutation({ onSuccess: refresh });
+  const closePosition = trpc.binancePaper.closePosition.useMutation({
+    onSuccess: async () => {
+      await Promise.all([account.refetch(), orders.refetch()]);
+      await Promise.all([utils.binancePaper.account.invalidate(), utils.binancePaper.orders.invalidate()]);
+      setClosingSymbol(null);
+    },
+    onError: () => setClosingSymbol(null),
+  });
   const pause = trpc.binancePaper.pauseBot.useMutation({
     onSuccess: async () => {
       await refresh();
@@ -299,11 +306,20 @@ export default function BinancePaperBot() {
   };
 
   const handleClosePosition = async (symbol: string, markPrice: number) => {
+    if (closingSymbol !== null) return;
+    setClosingSymbol(symbol);
+    setCloseError(null);
     try {
       await ensureSupabaseAccessToken();
-      await closePosition.mutateAsync({ symbol, markPrice });
+      await Promise.race([
+        closePosition.mutateAsync({ symbol, markPrice }),
+        new Promise<never>((_, reject) => setTimeout(() => reject(new Error("Close request timed out. Please refresh and try again.")), 15_000)),
+      ]);
     } catch (err) {
+      const message = err instanceof Error ? err.message : `Unable to close ${symbol}`;
+      setCloseError(message);
       console.error(`[BinancePaperBot] Failed to close ${symbol}:`, err);
+      setClosingSymbol(null);
     }
   };
 
@@ -450,8 +466,8 @@ export default function BinancePaperBot() {
                     <strong className={unrealizedPnl >= 0 ? "up" : "down"}>{money(unrealizedPnl)}</strong>
                     <small>Mark {money(position.marketPrice)}</small>
                   </div>
-                  <button type="button" className="bot-position-close" disabled={busy} onClick={() => { void handleClosePosition(position.symbol, position.marketPrice); }}>
-                    {closePosition.isPending ? "Closing…" : "Close position"}
+                  <button type="button" className="bot-position-close" disabled={closingSymbol === position.symbol} onClick={() => { void handleClosePosition(position.symbol, position.marketPrice); }}>
+                    {closingSymbol === position.symbol ? "Closing…" : "Close position"}
                   </button>
                 </div>
               );
@@ -514,7 +530,7 @@ export default function BinancePaperBot() {
           <button className="bot-trigger-instant" disabled={busy || parsedSymbols.length < 1} onClick={handleTriggerNow} title="Instantly trigger DeepSeek quantitative analysis on active market"><Zap size={14} className={triggerNow.isPending ? "spin" : ""} /> {triggerNow.isPending ? "Evaluating live chart…" : "⚡ Run DeepSeek Now"}</button>
           {config.data?.enabled === 1 ? <button className="bot-pause" disabled={busy} onClick={() => { void handlePauseBot(); }}><Pause size={14} /> {pause.isPending ? "Closing positions…" : "Stop / Pause Bot"}</button> : <button className="bot-enable" disabled={busy || parsedSymbols.length < 1} onClick={() => { void handleEnableBot(); }}><Play size={14} /> {isLive ? "Start Live DeepSeek Bot" : "Start scheduled simulation"}</button>}
         </div>
-        {save.error || enable.error || closePosition.error || pause.error || triggerNow.error || resetAccount.error ? <div className="bot-error"><ShieldAlert size={14} />{save.error?.message ?? enable.error?.message ?? closePosition.error?.message ?? pause.error?.message ?? triggerNow.error?.message ?? resetAccount.error?.message}</div> : null}
+        {save.error || enable.error || closeError || closePosition.error || pause.error || triggerNow.error || resetAccount.error ? <div className="bot-error"><ShieldAlert size={14} />{save.error?.message ?? enable.error?.message ?? closeError ?? closePosition.error?.message ?? pause.error?.message ?? triggerNow.error?.message ?? resetAccount.error?.message}</div> : null}
       </div>
 
       <LiveScalpContext symbols={parsedSymbols} />

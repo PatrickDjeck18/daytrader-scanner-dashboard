@@ -34,8 +34,11 @@ describe("BinancePaperBot display state", () => {
 
   it("wires individual position close to the mutation and refresh callback", async () => {
     const source = await readFile(new URL("./BinancePaperBot.tsx", import.meta.url), "utf8");
-    expect(source).toContain("trpc.binancePaper.closePosition.useMutation({ onSuccess: refresh })");
-    expect(source).toContain("await closePosition.mutateAsync({ symbol, markPrice })");
+    expect(source).toContain("trpc.binancePaper.closePosition.useMutation({");
+    expect(source).toContain("const [closingSymbol, setClosingSymbol] = useState<string | null>(null)");
+    expect(source).toContain("await Promise.all([account.refetch(), orders.refetch()])");
+    expect(source).toContain("closePosition.mutateAsync({ symbol, markPrice })");
+    expect(source).toContain("closingSymbol === position.symbol");
     expect(source).toContain("const refresh = async () =>");
     expect(source).toContain("account.refetch()");
     expect(source).toContain("orders.refetch()");
