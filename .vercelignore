@@ -1,5 +1,8 @@
+# Block server-side code
 server/**/*
 shared/**/*
+
+# Block TypeScript/JavaScript source files
 *.ts
 *.tsx
 *.js
@@ -17,8 +20,14 @@ shared/**/*
 !postcss.config.js
 !eslint.config.js
 !package.json
+!components.json
 
-# Allow public assets if needed
+# Allow client entry point and HTML files
+!client/index.html
+!*.html
+
+# Allow public assets
+!client/public/**/*
 !public/**/*
 
 # Block documentation and logs
@@ -27,5 +36,5 @@ shared/**/*
 node_modules/
 .git/
 
-# Block other JSON files by default
+# Block other JSON files by default (except those already allowed above)
 *.json
