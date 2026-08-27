@@ -1,12 +1,31 @@
 server/**/*
 shared/**/*
 *.ts
+*.tsx
+*.js
+*.jsx
+*.test.ts
+*.test.tsx
+*.spec.ts
+
+# Allow specific safe configuration files
 !vite.config.ts
 !vitest.config.ts
 !drizzle.config.ts
+!tsconfig.json
+!tailwind.config.js
+!postcss.config.js
+!eslint.config.js
+!package.json
+
+# Allow public assets if needed
+!public/**/*
+
+# Block documentation and logs
 *.md
 .manus-logs/
 node_modules/
 .git/
+
+# Block other JSON files by default
 *.json
-!package.json

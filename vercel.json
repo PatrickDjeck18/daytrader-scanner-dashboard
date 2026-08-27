@@ -21,20 +21,15 @@
       ]
     },
     {
-      "source": "/server/(.*)",
+      "source": "/(.*\\.(ts|js|tsx|jsx))$",
       "headers": [
         {
           "key": "X-Content-Type-Options",
           "value": "nosniff"
-        }
-      ]
-    },
-    {
-      "source": "/shared/(.*)",
-      "headers": [
+        },
         {
-          "key": "X-Content-Type-Options",
-          "value": "nosniff"
+          "key": "Content-Disposition",
+          "value": "attachment"
         }
       ]
     }
