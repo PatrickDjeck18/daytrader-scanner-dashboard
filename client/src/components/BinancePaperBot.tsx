@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Activity, BarChart3, Bot, BrainCircuit, CircleDollarSign, Clock3, Crosshair, Gauge, Pause, Play, Radio, RefreshCw, ShieldAlert, ShieldCheck, TrendingDown, TrendingUp, Trophy, WifiOff, Zap } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { ensureSupabaseAccessToken } from "@/lib/supabase";
+import { useSupabaseAuth } from "@/contexts/SupabaseAuthContext";
 import PaperBotActivityChart from "@/components/PaperBotActivityChart";
 
 const PAPER_STRATEGIES = ["scalp_momentum", "fast_momentum", "range_reversion", "vwap_pullback", "bb_squeeze"] as const;
@@ -205,8 +206,8 @@ function LiveScalpContext({ symbols }: { symbols: string[] }) {
 
 export default function BinancePaperBot() {
   const utils = trpc.useUtils(); const tickers = trpc.crypto.tickers.useQuery({ market: "global-spot", limit: 24 }, { retry: false, refetchInterval: 30_000 }); const prices = useMemo(() => Object.fromEntries((tickers.data ?? []).map(item => ({ symbol: item.symbol, price: Number(item.price ?? 0) })).filter(item => item.price > 0).map(item => [item.symbol, item.price] as const)), [tickers.data]);
-  const authMe = trpc.auth.me.useQuery(undefined, { retry: false });
-  const authed = Boolean(authMe.data);
+  const { user: supabaseUser, loading: supabaseAuthLoading } = useSupabaseAuth();
+  const authed = Boolean(supabaseUser) && !supabaseAuthLoading;
   const config = trpc.binancePaper.botConfig.useQuery(undefined, { enabled: authed, refetchInterval: 15_000, refetchIntervalInBackground: true, refetchOnWindowFocus: true, retry: false });
   const isBotEnabled = config.data?.enabled === 1;
   const polling = getPaperBotPollingOptions(isBotEnabled);

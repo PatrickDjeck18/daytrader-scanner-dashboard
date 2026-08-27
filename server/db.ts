@@ -188,9 +188,16 @@ export async function ensureBinancePaperAccount(userId: number) {
   return account;
 }
 
-export function calculateBinancePaperPnl(orders: Array<{ symbol: string; side: "buy" | "sell"; quantity: string | number; fillPrice: string | number }>, prices: Record<string, number> = {}) {
+export function calculateBinancePaperPnl(orders: Array<{ id?: number; createdAt?: Date | string; symbol: string; side: "buy" | "sell"; quantity: string | number; fillPrice: string | number }>, prices: Record<string, number> = {}) {
+  const chronological = orders.length > 1 && orders.some(order => order.id !== undefined || order.createdAt !== undefined)
+    ? [...orders].sort((a, b) => {
+        const aTime = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+        const bTime = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+        return aTime - bTime || (a.id ?? 0) - (b.id ?? 0);
+      })
+    : orders;
   const state = new Map<string, { quantity: number; averageCost: number }>(); let realizedPnl = 0;
-  for (const order of orders) { const quantity = asNumber(order.quantity); const fill = asNumber(order.fillPrice); if (!Number.isFinite(quantity) || quantity <= 0 || !Number.isFinite(fill) || fill <= 0) continue; const position = state.get(order.symbol) ?? { quantity: 0, averageCost: 0 }; if (order.side === "buy") { const nextQuantity = position.quantity + quantity; position.averageCost = nextQuantity ? ((position.quantity * position.averageCost) + quantity * fill) / nextQuantity : 0; position.quantity = nextQuantity; } else { const closed = Math.min(position.quantity, quantity); realizedPnl += closed * (fill - position.averageCost); position.quantity -= closed; if (position.quantity <= 0) position.averageCost = 0; } state.set(order.symbol, position); }
+  for (const order of chronological) { const quantity = asNumber(order.quantity); const fill = asNumber(order.fillPrice); if (!Number.isFinite(quantity) || quantity <= 0 || !Number.isFinite(fill) || fill <= 0) continue; const position = state.get(order.symbol) ?? { quantity: 0, averageCost: 0 }; if (order.side === "buy") { const nextQuantity = position.quantity + quantity; position.averageCost = nextQuantity ? ((position.quantity * position.averageCost) + quantity * fill) / nextQuantity : 0; position.quantity = nextQuantity; } else { const closed = Math.min(position.quantity, quantity); realizedPnl += closed * (fill - position.averageCost); position.quantity -= closed; if (position.quantity <= 0) position.averageCost = 0; } state.set(order.symbol, position); }
   const positions = Array.from(state.entries()).filter(([, item]) => item.quantity > 0).map(([symbol, item]) => { const marketPrice = prices[symbol] ?? item.averageCost; return { symbol, quantity: item.quantity, averageCost: item.averageCost, marketPrice, unrealizedPnl: item.quantity * (marketPrice - item.averageCost) }; });
   const usedCapital = positions.reduce((sum, item) => sum + item.quantity * item.averageCost, 0); const unrealizedPnl = positions.reduce((sum, item) => sum + item.unrealizedPnl, 0);
   return { realizedPnl, unrealizedPnl, usedCapital, positions };

@@ -41,6 +41,15 @@ describe("paper account P&L", () => {
     expect(result.unrealizedPnl).toBe(0);
   });
 
+  it("processes persisted fills chronologically even when the database returns newest first", () => {
+    const result = calculateBinancePaperPnl([
+      { id: 2, createdAt: "2026-08-27T16:44:20.130Z", symbol: "BTCUSDT", side: "sell", quantity: "0.00015565", fillPrice: "80500" },
+      { id: 1, createdAt: "2026-08-27T16:33:10.000Z", symbol: "BTCUSDT", side: "buy", quantity: "0.00015565", fillPrice: "80348.58" },
+    ], { BTCUSDT: 80500 });
+    expect(result.positions).toEqual([]);
+    expect(result.realizedPnl).toBeCloseTo(0.0235685, 6);
+  });
+
   it("calculates realized and unrealized P&L from filled orders", () => {
     const result = calculatePaperPnl([
       { symbol: "AAPL", side: "buy", quantity: "10", fillPrice: "100" },
