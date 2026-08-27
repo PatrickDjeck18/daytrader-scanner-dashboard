@@ -53,6 +53,8 @@ export function getScalpObservationDisplayState(input: { availability?: string; 
 export function getPaperBotRunSummary(run: { status: string; error?: string | null; decision?: string | null }) { try { const decision = run.decision ? JSON.parse(run.decision) as { reason?: unknown; holdCategory?: unknown } : undefined; const reason = typeof decision?.reason === "string" ? decision.reason : undefined; const category = typeof decision?.holdCategory === "string" ? holdLabels[decision.holdCategory] : undefined; return category && reason ? `${category} — ${reason}` : reason ?? run.error ?? "Awaiting completion"; } catch { return run.error ?? "Awaiting completion"; } }
 export function getPaperBotQualityStats(runs: Array<{ decision?: string | null }>) { const decisions = runs.flatMap(run => { try { const parsed = run.decision ? JSON.parse(run.decision) as { confidence?: unknown; holdCategory?: unknown } : undefined; return parsed ? [parsed] : []; } catch { return []; } }); const confidence = decisions.flatMap(decision => typeof decision.confidence === "number" && Number.isFinite(decision.confidence) ? [decision.confidence] : []); const band = (predicate: (value: number) => boolean) => confidence.filter(predicate).length; return { decisions: decisions.length, averageConfidence: confidence.length ? confidence.reduce((sum, value) => sum + value, 0) / confidence.length : undefined, under40: band(value => value < .4), mid: band(value => value >= .4 && value < .6), qualified: band(value => value >= .6), modelOrParserHolds: decisions.filter(decision => decision.holdCategory === "model_unavailable").length }; }
 
+export function getPaperBotPollingOptions(isBotEnabled: boolean) { return { retry: false, refetchInterval: isBotEnabled ? 3_000 : 10_000, refetchIntervalInBackground: true, refetchOnWindowFocus: true } as const; }
+
 export type SymbolAttribution = {
   symbol: string;
   trades: number;
@@ -205,18 +207,18 @@ export default function BinancePaperBot() {
   const utils = trpc.useUtils(); const tickers = trpc.crypto.tickers.useQuery({ market: "global-spot", limit: 24 }, { retry: false, refetchInterval: 30_000 }); const prices = useMemo(() => Object.fromEntries((tickers.data ?? []).map(item => ({ symbol: item.symbol, price: Number(item.price ?? 0) })).filter(item => item.price > 0).map(item => [item.symbol, item.price] as const)), [tickers.data]);
   const authMe = trpc.auth.me.useQuery(undefined, { retry: false });
   const authed = Boolean(authMe.data);
-  const config = trpc.binancePaper.botConfig.useQuery(undefined, { enabled: authed, retry: false, refetchInterval: 15_000, refetchIntervalInBackground: true, refetchOnWindowFocus: true });
+  const config = trpc.binancePaper.botConfig.useQuery(undefined, { enabled: authed, refetchInterval: 15_000, refetchIntervalInBackground: true, refetchOnWindowFocus: true, retry: false });
   const isBotEnabled = config.data?.enabled === 1;
-  const pollInterval = isBotEnabled ? 3_000 : 10_000;
+  const polling = getPaperBotPollingOptions(isBotEnabled);
   const [tradingMode, setTradingMode] = useState<"paper" | "live">("paper");
   const isLive = tradingMode === "live";
 
   const credCheck = trpc.binancePaper.validateCredentials.useQuery(undefined, { enabled: authed, retry: false, refetchInterval: 20_000 });
-  const account = trpc.binancePaper.account.useQuery({ prices }, { enabled: authed && !isLive, retry: false, refetchInterval: pollInterval, refetchIntervalInBackground: true, refetchOnWindowFocus: true });
-  const liveAccount = trpc.binancePaper.liveAccount.useQuery({ prices }, { enabled: authed && isLive, retry: false, refetchInterval: pollInterval, refetchIntervalInBackground: true, refetchOnWindowFocus: true });
-  const orders = trpc.binancePaper.orders.useQuery(undefined, { enabled: authed && !isLive, retry: false, refetchInterval: pollInterval, refetchIntervalInBackground: true, refetchOnWindowFocus: true });
-  const liveOrders = trpc.binancePaper.liveOrders.useQuery(undefined, { enabled: authed && isLive, retry: false, refetchInterval: pollInterval, refetchIntervalInBackground: true, refetchOnWindowFocus: true });
-  const runs = trpc.binancePaper.botRuns.useQuery(undefined, { enabled: authed, retry: false, refetchInterval: pollInterval, refetchIntervalInBackground: true, refetchOnWindowFocus: true });
+  const account = trpc.binancePaper.account.useQuery({ prices }, { enabled: authed && !isLive, ...polling });
+  const liveAccount = trpc.binancePaper.liveAccount.useQuery({ prices }, { enabled: authed && isLive, ...polling });
+  const orders = trpc.binancePaper.orders.useQuery(undefined, { enabled: authed && !isLive, ...polling });
+  const liveOrders = trpc.binancePaper.liveOrders.useQuery(undefined, { enabled: authed && isLive, ...polling });
+  const runs = trpc.binancePaper.botRuns.useQuery(undefined, { enabled: authed, ...polling });
 
   const activeAccount = isLive ? (liveAccount.data ?? account.data) : account.data;
   const activeOrders = isLive ? (liveOrders.data ?? []) : (orders.data ?? []);
