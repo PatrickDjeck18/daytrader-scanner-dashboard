@@ -1,0 +1,40 @@
+# Block server-side code
+server/**/*
+shared/**/*
+
+# Block TypeScript/JavaScript source files
+*.ts
+*.tsx
+*.js
+*.jsx
+*.test.ts
+*.test.tsx
+*.spec.ts
+
+# Allow specific safe configuration files
+!vite.config.ts
+!vitest.config.ts
+!drizzle.config.ts
+!tsconfig.json
+!tailwind.config.js
+!postcss.config.js
+!eslint.config.js
+!package.json
+!components.json
+
+# Allow client entry point and HTML files
+!client/index.html
+!*.html
+
+# Allow public assets
+!client/public/**/*
+!public/**/*
+
+# Block documentation and logs
+*.md
+.manus-logs/
+node_modules/
+.git/
+
+# Block other JSON files by default (except those already allowed above)
+*.json
