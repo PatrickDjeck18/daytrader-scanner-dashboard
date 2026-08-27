@@ -74,4 +74,4 @@
 - [x] Add a Close control to each open simulated position with current-price execution and refresh.
 - [x] Add regression coverage for individual close behavior and validate the production build.
 - [x] Add behavior-level tests for successful individual close, missing position rejection, and invalid mark handling.
-- [ ] Add UI-level coverage that an individual Close action refreshes account and order data.
+- [x] Add UI-level coverage that an individual Close action refreshes account and order data.
