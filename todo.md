@@ -99,3 +99,6 @@
 - [x] Fix paper P&L reconstruction to process persisted fills chronologically rather than newest-first.
 - [x] Add a regression test for a descending sell-then-buy order list flattening to zero quantity.
 - [x] Re-verify the deployed mutation and account summary after publishing the chronological-order fix.
+- [x] Review how live-account view settings are currently separated from paper bot settings.
+- [x] Make live-account display use the same symbols, strategy, cadence, and risk configuration as the paper bot without enabling live orders.
+- [x] Add regression coverage for shared settings and validate the production build.

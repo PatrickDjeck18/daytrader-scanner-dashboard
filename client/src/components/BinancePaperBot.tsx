@@ -230,9 +230,6 @@ export default function BinancePaperBot() {
       try { const parsed = JSON.parse(config.data.symbols); if (Array.isArray(parsed)) setSymbols(parsed.join(", ")); } catch { /* preserved safely */ }
       setInterval(config.data.scheduleMinutes as 1 | 5 | 15);
       if (isPaperStrategy(config.data.strategy)) setStrategy(config.data.strategy);
-      if (config.data.tradingMode === "live" || config.data.tradingMode === "paper") {
-        setTradingMode(config.data.tradingMode as "paper" | "live");
-      }
     }
   }, [config.data]);
 
@@ -274,7 +271,7 @@ export default function BinancePaperBot() {
   const saveConfig = async () => {
     try {
       await ensureSupabaseAccessToken();
-      await save.mutateAsync({ symbols: parsedSymbols, strategy, scheduleMinutes: interval, riskPct: 1, dailyLossStopPct: 3, maxOpenPositions: 3, tradingMode });
+      await save.mutateAsync({ symbols: parsedSymbols, strategy, scheduleMinutes: interval, riskPct: 1, dailyLossStopPct: 3, maxOpenPositions: 3, tradingMode: "paper" });
       if (config.data?.enabled === 1) {
         await enable.mutateAsync({ scheduleMinutes: interval });
       }
@@ -287,7 +284,7 @@ export default function BinancePaperBot() {
   const handleEnableBot = async () => {
     try {
       await ensureSupabaseAccessToken();
-      await save.mutateAsync({ symbols: parsedSymbols, strategy, scheduleMinutes: interval, riskPct: 1, dailyLossStopPct: 3, maxOpenPositions: 3, tradingMode });
+      await save.mutateAsync({ symbols: parsedSymbols, strategy, scheduleMinutes: interval, riskPct: 1, dailyLossStopPct: 3, maxOpenPositions: 3, tradingMode: "paper" });
       await enable.mutateAsync({ scheduleMinutes: interval });
       refresh();
     } catch (err) {
@@ -378,7 +375,6 @@ export default function BinancePaperBot() {
             onClick={() => {
               if (tradingMode !== "paper") {
                 setTradingMode("paper");
-                void save.mutateAsync({ symbols: parsedSymbols, strategy, scheduleMinutes: interval, riskPct: 1, dailyLossStopPct: 3, maxOpenPositions: 3, tradingMode: "paper" });
               }
             }}
           >
@@ -394,7 +390,6 @@ export default function BinancePaperBot() {
                 );
                 if (confirmed) {
                   setTradingMode("live");
-                  void save.mutateAsync({ symbols: parsedSymbols, strategy, scheduleMinutes: interval, riskPct: 1, dailyLossStopPct: 3, maxOpenPositions: 3, tradingMode: "live" });
                 }
               }
             }}
@@ -482,8 +477,8 @@ export default function BinancePaperBot() {
 
       <div className="bot-settings">
         <div className="bot-settings-head">
-          <div><BrainCircuit size={15} /><b>{isLive ? "Live Binance Quantitative Settings" : "Scheduled quantitative settings"}</b></div>
-          <span className={`bot-status ${status}`}>{status === "scheduled" ? (isLive ? "● LIVE ACTIVE (AUTO)" : "● SCHEDULED (AUTO)") : status === "paused" ? "○ PAUSED / IDLE" : "READY"}</span>
+          <div><BrainCircuit size={15} />              <b>{isLive ? "Shared paper-bot settings · live view" : "Scheduled quantitative settings"}</b></div>
+              <span className={`bot-status ${status}`}>{isLive ? "● SHARED · READ-ONLY" : status === "scheduled" ? "● SCHEDULED (AUTO)" : status === "paused" ? "○ PAUSED / IDLE" : "READY"}</span>
         </div>
         <div className="bot-symbol-selector">
           <label>
@@ -519,16 +514,16 @@ export default function BinancePaperBot() {
           <small>Each decision sees multi-timeframe 1m · 5m · 15m indicators (EMA, RSI, ATR, RVOL, VWAP, Bollinger Bands).</small>
         </div>
         <div>
-          <span className="bot-settings-label">{isLive ? "LIVE STRATEGY ENGINE" : "SIMULATION STRATEGY"}</span>
+          <span className="bot-settings-label">{isLive ? "SHARED PAPER STRATEGY" : "SIMULATION STRATEGY"}</span>
           <div className="strategy-card-grid">
             {PAPER_STRATEGIES.map(item => <StrategyCard key={item} strategy={item} active={strategy === item} onClick={() => setStrategy(item)} />)}
           </div>
-          <small style={{ color: "#7f8999", fontSize: "9px", marginTop: "6px", display: "block" }}>Confidence-weighted Kelly sizing, +0.10% quick-profit lock, -0.18% stop-loss, and 3% daily drawdown stop active in paper mode. The managed bot evaluates at the selected 1m/5m/15m cadence; it never forces a trade.</small>
+          <small style={{ color: "#7f8999", fontSize: "9px", marginTop: "6px", display: "block" }}>Shared across Paper Simulation and the read-only Binance account view: confidence-weighted Kelly sizing, +0.10% quick-profit lock, -0.18% stop-loss, and 3% daily drawdown stop. Live mode never submits orders.</small>
         </div>
         <div className="bot-actions">
-          <button className="bot-secondary" disabled={busy || parsedSymbols.length < 1} onClick={saveConfig}><CircleDollarSign size={14} /> {isLive ? "Save live settings" : "Save paper settings"}</button>
+          <button className="bot-secondary" disabled={busy || parsedSymbols.length < 1} onClick={saveConfig}><CircleDollarSign size={14} /> {isLive ? "Save shared settings" : "Save paper settings"}</button>
           <button className="bot-trigger-instant" disabled={busy || parsedSymbols.length < 1} onClick={handleTriggerNow} title="Instantly trigger DeepSeek quantitative analysis on active market"><Zap size={14} className={triggerNow.isPending ? "spin" : ""} /> {triggerNow.isPending ? "Evaluating live chart…" : "⚡ Run DeepSeek Now"}</button>
-          {config.data?.enabled === 1 ? <button className="bot-pause" disabled={busy} onClick={() => { void handlePauseBot(); }}><Pause size={14} /> {pause.isPending ? "Closing positions…" : "Stop / Pause Bot"}</button> : <button className="bot-enable" disabled={busy || parsedSymbols.length < 1} onClick={() => { void handleEnableBot(); }}><Play size={14} /> {isLive ? "Start Live DeepSeek Bot" : "Start scheduled simulation"}</button>}
+          {!isLive ? (config.data?.enabled === 1 ? <button className="bot-pause" disabled={busy} onClick={() => { void handlePauseBot(); }}><Pause size={14} /> {pause.isPending ? "Closing positions…" : "Stop / Pause Bot"}</button> : <button className="bot-enable" disabled={busy || parsedSymbols.length < 1} onClick={() => { void handleEnableBot(); }}><Play size={14} /> Start scheduled simulation</button>) : <span className="bot-live-readonly-note"><ShieldCheck size={13} /> Live account view is read-only; the shared bot remains paper-only.</span>}
         </div>
         {save.error || enable.error || closeError || closePosition.error || pause.error || triggerNow.error || resetAccount.error ? <div className="bot-error"><ShieldAlert size={14} />{save.error?.message ?? enable.error?.message ?? closeError ?? closePosition.error?.message ?? pause.error?.message ?? triggerNow.error?.message ?? resetAccount.error?.message}</div> : null}
       </div>

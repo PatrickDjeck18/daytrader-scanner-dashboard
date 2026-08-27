@@ -32,6 +32,16 @@ describe("BinancePaperBot display state", () => {
     expect(stats.averageConfidence).toBeCloseTo(.466, 2);
   });
 
+  it("shares paper settings with the live read-only account view", async () => {
+    const source = await readFile(new URL("./BinancePaperBot.tsx", import.meta.url), "utf8");
+    expect(source).toContain("Shared paper-bot settings · live view");
+    expect(source).toContain("SHARED PAPER STRATEGY");
+    expect(source).toContain("Save shared settings");
+    expect(source).toContain("Live account view is read-only; the shared bot remains paper-only.");
+    expect(source).toContain('tradingMode: "paper"');
+    expect(source).not.toContain('tradingMode: "live"');
+  });
+
   it("wires individual position close to the mutation and refresh callback", async () => {
     const source = await readFile(new URL("./BinancePaperBot.tsx", import.meta.url), "utf8");
     expect(source).toContain("trpc.binancePaper.closePosition.useMutation({");
