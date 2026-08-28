@@ -2,7 +2,7 @@ import { and, eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/node-postgres";
 import { lookup } from "node:dns/promises";
 import { Pool } from "pg";
-import { InsertUser, users, watchlists, watchlistItems, scannerPresets, alertRules, workspaceLayouts, paperOrders, backtestRuns, auditEvents, providerHealth, binancePaperAccounts, binancePaperOrders, paperBotConfigs, paperBotRuns, paperBotScheduleTasks } from "../drizzle/schema";
+import { InsertUser, users, watchlists, watchlistItems, scannerPresets, alertRules, workspaceLayouts, paperOrders, backtestRuns, auditEvents, providerHealth, binancePaperAccounts, binancePaperOrders, paperBotConfigs, paperBotRuns, paperBotScheduleTasks, binanceLiveAccounts, binanceLiveOrders, type BinanceLiveAccount, type InsertBinanceLiveAccount } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
 let _db: ReturnType<typeof drizzle> | null = null;
@@ -116,8 +116,10 @@ export async function upsertSupabaseAuthUser(input: { authId: string; email?: st
 
 export async function deleteWatchlist(userId: number, id: number) { const db = await getDb(); if (!db) throw new Error("Database unavailable"); await db.delete(watchlists).where(and(eq(watchlists.id, id), eq(watchlists.userId, userId))); return true; }
 export async function listWatchlistItems(userId: number, watchlistId: number) { const db = await getDb(); if (!db) return []; const owned = await db.select({ id: watchlists.id }).from(watchlists).where(and(eq(watchlists.id, watchlistId), eq(watchlists.userId, userId))); if (!owned.length) throw new Error("Watchlist not found"); return db.select().from(watchlistItems).where(eq(watchlistItems.watchlistId, watchlistId)); }
-export async function addWatchlistItem(userId: number, watchlistId: number, symbol: string) { const db = await getDb(); if (!db) throw new Error("Database unavailable"); const owned = await db.select({ id: watchlists.id }).from(watchlists).where(and(eq(watchlists.id, watchlistId), eq(watchlists.userId, userId))); if (!owned.length) throw new Error("Watchlist not found"); await db.insert(watchlistItems).values({ watchlistId, symbol, sortOrder: 0 }); return true; }
+export async function addWatchlistItem(userId: number, watchlistId: number, symbol: string, name?: string | null) { const db = await getDb(); if (!db) throw new Error("Database unavailable"); const owned = await db.select({ id: watchlists.id }).from(watchlists).where(and(eq(watchlists.id, watchlistId), eq(watchlists.userId, userId))); if (!owned.length) throw new Error("Watchlist not found"); await db.insert(watchlistItems).values({ watchlistId, symbol, name: name ?? null, sortOrder: 0 }); return true; }
 export async function deleteWatchlistItem(userId: number, id: number) { const db = await getDb(); if (!db) throw new Error("Database unavailable"); const rows = await db.select({ itemId: watchlistItems.id }).from(watchlistItems).innerJoin(watchlists, eq(watchlists.id, watchlistItems.watchlistId)).where(and(eq(watchlistItems.id, id), eq(watchlists.userId, userId))); if (rows.length) await db.delete(watchlistItems).where(eq(watchlistItems.id, id)); return true; }
+export async function updateWatchlistItem(userId: number, id: number, name?: string | null) { const db = await getDb(); if (!db) throw new Error("Database unavailable"); const rows = await db.select({ itemId: watchlistItems.id }).from(watchlistItems).innerJoin(watchlists, eq(watchlists.id, watchlistItems.watchlistId)).where(and(eq(watchlistItems.id, id), eq(watchlists.userId, userId))); if (rows.length) await db.update(watchlistItems).set({ name: name ?? null }).where(eq(watchlistItems.id, id)); return true; }
+export async function removeWatchlistItem(userId: number, id: number) { return deleteWatchlistItem(userId, id); }
 export async function listWatchlists(userId: number) { const db = await getDb(); if (!db) return []; return db.select().from(watchlists).where(eq(watchlists.userId, userId)); }
 export async function createWatchlist(userId: number, name: string, columns: string[]) { const db = await getDb(); if (!db) throw new Error("Database unavailable"); await db.insert(watchlists).values({ userId, name, columns: JSON.stringify(columns) }); return true; }
 export async function deletePreset(userId: number, id: number) { const db = await getDb(); if (!db) throw new Error("Database unavailable"); await db.delete(scannerPresets).where(and(eq(scannerPresets.id, id), eq(scannerPresets.userId, userId))); return true; }
@@ -129,6 +131,7 @@ export async function saveLayout(userId: number, name: string, layout: unknown) 
 export async function deleteAlertRule(userId: number, id: number) { const db = await getDb(); if (!db) throw new Error("Database unavailable"); await db.delete(alertRules).where(and(eq(alertRules.id, id), eq(alertRules.userId, userId))); return true; }
 export async function listAlertRules(userId: number) { const db = await getDb(); if (!db) return []; return db.select().from(alertRules).where(eq(alertRules.userId, userId)); }
 export async function createAlertRule(userId: number, name: string, symbol: string | undefined, condition: unknown) { const db = await getDb(); if (!db) throw new Error("Database unavailable"); await db.insert(alertRules).values({ userId, name, symbol, condition: JSON.stringify(condition) }); return true; }
+export async function toggleAlertRule(userId: number, id: number, enabled: number) { const db = await getDb(); if (!db) throw new Error("Database unavailable"); const rows = await db.select({ id: alertRules.id }).from(alertRules).where(and(eq(alertRules.id, id), eq(alertRules.userId, userId))); if (rows.length) await db.update(alertRules).set({ enabled }).where(eq(alertRules.id, id)); return true; }
 export function simulatePaperFill(input: { side: "buy" | "sell"; orderType: "market" | "limit"; limitPrice?: string; markPrice?: number }) { const mark = input.markPrice && Number.isFinite(input.markPrice) && input.markPrice > 0 ? input.markPrice : undefined; const limit = input.limitPrice ? Number(input.limitPrice) : undefined; const filled = input.orderType === "market" ? Boolean(mark) : Boolean(mark && limit && (input.side === "buy" ? mark <= limit : mark >= limit)); return { status: filled ? "filled" as const : "submitted" as const, fillPrice: filled ? mark : undefined }; }
 export async function createPaperOrder(userId: number, input: { idempotencyKey: string; symbol: string; side: "buy" | "sell"; quantity: string; orderType: "market" | "limit"; limitPrice?: string; markPrice?: number }) { const db = await getDb(); if (!db) throw new Error("Database unavailable"); const existing = await db.select().from(paperOrders).where(and(eq(paperOrders.userId, userId), eq(paperOrders.idempotencyKey, input.idempotencyKey))).limit(1); if (existing[0]) return existing[0]; const fill = simulatePaperFill(input); const fillPrice = fill.fillPrice === undefined ? undefined : String(fill.fillPrice); const status = fill.status; await db.insert(paperOrders).values({ userId, idempotencyKey: input.idempotencyKey, symbol: input.symbol, side: input.side, quantity: input.quantity, orderType: input.orderType, limitPrice: input.limitPrice, fillPrice, status }); const created = await db.select().from(paperOrders).where(and(eq(paperOrders.userId, userId), eq(paperOrders.idempotencyKey, input.idempotencyKey))).limit(1); return created[0] ?? true; }
 export async function listPaperOrders(userId: number) { const db = await getDb(); if (!db) return []; return db.select().from(paperOrders).where(eq(paperOrders.userId, userId)); }
@@ -200,12 +203,12 @@ export async function createBinancePaperOrder(userId: number, input: { idempoten
 
 export async function ensurePaperBotConfig(userId: number) {
   const db = await getDb(); if (!db) throw new Error("Database unavailable"); let config = (await db.select().from(paperBotConfigs).where(eq(paperBotConfigs.userId, userId)).limit(1))[0];
-  if (!config) { await db.insert(paperBotConfigs).values({ userId, symbols: JSON.stringify(DEFAULT_BOT_SYMBOLS), strategy: "scalp_momentum", scheduleMinutes: 5, riskPct: "1.000", dailyLossStopPct: "3.000", maxOpenPositions: 3, enabled: 0 }); config = (await db.select().from(paperBotConfigs).where(eq(paperBotConfigs.userId, userId)).limit(1))[0]; }
+  if (!config) { await db.insert(paperBotConfigs).values({ userId, symbols: JSON.stringify(DEFAULT_BOT_SYMBOLS), strategy: "scalp_momentum", scheduleMinutes: 5, riskPct: "1.000", dailyLossStopPct: "3.000", maxOpenPositions: 3, confidenceThreshold: "0.60", stopLossPct: "0.500", takeProfitRatio: "1.50", momentumThreshold: "0.040", rangeUpperBound: "0.700", rangeLowerBound: "0.400", enabled: 0 }); config = (await db.select().from(paperBotConfigs).where(eq(paperBotConfigs.userId, userId)).limit(1))[0]; }
   if (!config) throw new Error("Paper bot configuration could not be initialized"); return config;
 }
 
-export async function savePaperBotConfig(userId: number, input: { symbols: string[]; strategy: "scalp_momentum" | "fast_momentum" | "range_reversion" | "learning_mode"; scheduleMinutes: number; riskPct: number; dailyLossStopPct: number; maxOpenPositions: number; enabled?: boolean }) {
-  const db = await getDb(); if (!db) throw new Error("Database unavailable"); const current = await ensurePaperBotConfig(userId); await db.update(paperBotConfigs).set({ symbols: JSON.stringify(input.symbols), strategy: input.strategy, scheduleMinutes: input.scheduleMinutes, riskPct: String(input.riskPct), dailyLossStopPct: String(input.dailyLossStopPct), maxOpenPositions: input.maxOpenPositions, enabled: input.enabled === true ? 1 : 0, scheduleCronTaskUid: null, lastRunStatus: input.enabled === true ? current.lastRunStatus : "settings_saved", lastRunError: null, updatedAt: new Date() }).where(eq(paperBotConfigs.id, current.id)); return ensurePaperBotConfig(userId);
+export async function savePaperBotConfig(userId: number, input: { symbols: string[]; strategy: "scalp_momentum" | "fast_momentum" | "range_reversion" | "learning_mode"; scheduleMinutes: number; riskPct: number; dailyLossStopPct: number; maxOpenPositions: number; confidenceThreshold?: number; stopLossPct?: number; takeProfitRatio?: number; momentumThreshold?: number; rangeUpperBound?: number; rangeLowerBound?: number; enabled?: boolean }) {
+  const db = await getDb(); if (!db) throw new Error("Database unavailable"); const current = await ensurePaperBotConfig(userId); await db.update(paperBotConfigs).set({ symbols: JSON.stringify(input.symbols), strategy: input.strategy, scheduleMinutes: input.scheduleMinutes, riskPct: String(input.riskPct), dailyLossStopPct: String(input.dailyLossStopPct), maxOpenPositions: input.maxOpenPositions, confidenceThreshold: input.confidenceThreshold !== undefined ? String(input.confidenceThreshold) : current.confidenceThreshold, stopLossPct: input.stopLossPct !== undefined ? String(input.stopLossPct) : current.stopLossPct, takeProfitRatio: input.takeProfitRatio !== undefined ? String(input.takeProfitRatio) : current.takeProfitRatio, momentumThreshold: input.momentumThreshold !== undefined ? String(input.momentumThreshold) : current.momentumThreshold, rangeUpperBound: input.rangeUpperBound !== undefined ? String(input.rangeUpperBound) : current.rangeUpperBound, rangeLowerBound: input.rangeLowerBound !== undefined ? String(input.rangeLowerBound) : current.rangeLowerBound, enabled: input.enabled === true ? 1 : 0, scheduleCronTaskUid: null, lastRunStatus: input.enabled === true ? current.lastRunStatus : "settings_saved", lastRunError: null, updatedAt: new Date() }).where(eq(paperBotConfigs.id, current.id)); return ensurePaperBotConfig(userId);
 }
 export async function updatePaperBotSchedule(userId: number, input: { enabled: boolean; taskUid?: string | null; status?: string; error?: string | null }) { const db = await getDb(); if (!db) throw new Error("Database unavailable"); const current = await ensurePaperBotConfig(userId); await db.update(paperBotConfigs).set({ enabled: input.enabled ? 1 : 0, ...(input.taskUid === undefined ? {} : { scheduleCronTaskUid: input.taskUid }), lastRunStatus: input.status ?? current.lastRunStatus, lastRunError: input.error ?? null, updatedAt: new Date() }).where(eq(paperBotConfigs.id, current.id)); return ensurePaperBotConfig(userId); }
 export async function getPaperBotConfigByTaskUid(taskUid: string) { const db = await getDb(); if (!db) return undefined; return (await db.select().from(paperBotConfigs).where(eq(paperBotConfigs.scheduleCronTaskUid, taskUid)).limit(1))[0]; }
@@ -214,5 +217,64 @@ export async function getPaperBotScheduleTask(intervalMinutes: number) { const d
 export async function listPaperBotRuns(userId: number) { const db = await getDb(); if (!db) return []; return db.select().from(paperBotRuns).where(eq(paperBotRuns.userId, userId)).limit(100); }
 export async function startPaperBotRun(input: { userId: number; configId: number; runKey: string; marketContext: unknown }) { const db = await getDb(); if (!db) throw new Error("Database unavailable"); const existing = (await db.select().from(paperBotRuns).where(eq(paperBotRuns.runKey, input.runKey)).limit(1))[0]; if (existing) return { run: existing, created: false }; await db.insert(paperBotRuns).values({ userId: input.userId, configId: input.configId, runKey: input.runKey, marketContext: JSON.stringify(input.marketContext), status: "started" }); const run = (await db.select().from(paperBotRuns).where(eq(paperBotRuns.runKey, input.runKey)).limit(1))[0]; if (!run) throw new Error("Paper bot run could not be created"); return { run, created: true }; }
 export async function completePaperBotRun(input: { id: number; status: "hold" | "ordered" | "risk_blocked" | "error"; decision?: unknown; error?: string; configId: number }) { const db = await getDb(); if (!db) throw new Error("Database unavailable"); await db.update(paperBotRuns).set({ status: input.status, decision: input.decision ? JSON.stringify(input.decision) : undefined, error: input.error, completedAt: new Date() }).where(eq(paperBotRuns.id, input.id)); await db.update(paperBotConfigs).set({ lastRunAt: new Date(), lastRunStatus: input.status, lastRunError: input.error ?? null, updatedAt: new Date() }).where(eq(paperBotConfigs.id, input.configId)); }
+
+export async function ensureBinanceLiveAccount(userId: number): Promise<BinanceLiveAccount> {
+  const db = await getDb(); if (!db) throw new Error("Database unavailable");
+  let account = (await db.select().from(binanceLiveAccounts).where(eq(binanceLiveAccounts.userId, userId)).limit(1))[0];
+  if (!account) {
+    throw new Error("Live Binance account not configured for this user");
+  }
+  return account;
+}
+
+export async function saveBinanceLiveCredentials(userId: number, input: { apiKeyEncrypted: string; apiSecretEncrypted: string; accountType?: "spot" | "futures"; isTestnet?: boolean }) {
+  const db = await getDb(); if (!db) throw new Error("Database unavailable");
+  const existing = (await db.select().from(binanceLiveAccounts).where(eq(binanceLiveAccounts.userId, userId)).limit(1))[0];
+  if (existing) {
+    await db.update(binanceLiveAccounts).set({ apiKeyEncrypted: input.apiKeyEncrypted, apiSecretEncrypted: input.apiSecretEncrypted, accountType: input.accountType ?? "spot", isTestnet: input.isTestnet ? 1 : 0, updatedAt: new Date() }).where(eq(binanceLiveAccounts.id, existing.id));
+    return ensureBinanceLiveAccount(userId);
+  }
+  await db.insert(binanceLiveAccounts).values({ userId, apiKeyEncrypted: input.apiKeyEncrypted, apiSecretEncrypted: input.apiSecretEncrypted, accountType: input.accountType ?? "spot", isTestnet: input.isTestnet ? 1 : 0 });
+  return ensureBinanceLiveAccount(userId);
+}
+
+export async function deleteBinanceLiveCredentials(userId: number) {
+  const db = await getDb(); if (!db) throw new Error("Database unavailable");
+  await db.delete(binanceLiveAccounts).where(eq(binanceLiveAccounts.userId, userId));
+}
+
+export async function listBinanceLiveOrders(userId: number) {
+  const db = await getDb(); if (!db) return [];
+  return db.select().from(binanceLiveOrders).where(eq(binanceLiveOrders.userId, userId)).orderBy(binanceLiveOrders.createdAt.desc()).limit(100);
+}
+
+export async function createBinanceLiveOrder(userId: number, input: { idempotencyKey: string; symbol: string; side: "buy" | "sell"; quantity: number; market?: string; binanceOrderId?: string; status?: string; fillPrice?: number; stopPrice?: number | null; targetPrice?: number | null; source?: string }) {
+  const db = await getDb(); if (!db) throw new Error("Database unavailable");
+  const account = await ensureBinanceLiveAccount(userId);
+  const existing = (await db.select().from(binanceLiveOrders).where(eq(binanceLiveOrders.idempotencyKey, input.idempotencyKey)).limit(1))[0];
+  if (existing) return existing;
+  await db.insert(binanceLiveOrders).values({ userId, accountId: account.id, market: input.market ?? "global-spot", symbol: input.symbol, side: input.side, quantity: String(input.quantity), binanceOrderId: input.binanceOrderId, fillPrice: input.fillPrice ? String(input.fillPrice) : undefined, stopPrice: input.stopPrice ? String(input.stopPrice) : undefined, targetPrice: input.targetPrice ? String(input.targetPrice) : undefined, idempotencyKey: input.idempotencyKey, source: input.source ?? "live-bot", status: input.status ?? "submitted" });
+  return (await db.select().from(binanceLiveOrders).where(eq(binanceLiveOrders.idempotencyKey, input.idempotencyKey)).limit(1))[0];
+}
+
+export async function updateBinanceLiveOrderStatus(idempotencyKey: string, updates: { status: string; fillPrice?: number; filledAt?: Date }) {
+  const db = await getDb(); if (!db) throw new Error("Database unavailable");
+  await db.update(binanceLiveOrders).set({ status: updates.status, fillPrice: updates.fillPrice ? String(updates.fillPrice) : undefined, filledAt: updates.filledAt, updatedAt: new Date() }).where(eq(binanceLiveOrders.idempotencyKey, idempotencyKey));
+  return (await db.select().from(binanceLiveOrders).where(eq(binanceLiveOrders.idempotencyKey, idempotencyKey)).limit(1))[0];
+}
+
+export async function syncBinanceLiveAccount(userId: number, equity: number) {
+  const db = await getDb(); if (!db) throw new Error("Database unavailable");
+  const account = await ensureBinanceLiveAccount(userId);
+  const currentDay = todayKey();
+  let dailyStartEquity = account.dailyStartEquity ? asNumber(account.dailyStartEquity) : equity;
+  if (account.dailyAnchor !== currentDay) {
+    dailyStartEquity = equity;
+    await db.update(binanceLiveAccounts).set({ dailyAnchor: currentDay, dailyStartEquity: String(equity), lastSyncAt: new Date(), updatedAt: new Date() }).where(eq(binanceLiveAccounts.id, account.id));
+  } else {
+    await db.update(binanceLiveAccounts).set({ lastSyncAt: new Date(), updatedAt: new Date() }).where(eq(binanceLiveAccounts.id, account.id));
+  }
+  return { ...account, dailyStartEquity, equity };
+}
 
 // TODO: add feature queries here as your schema grows.

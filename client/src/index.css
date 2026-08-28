@@ -97,3 +97,343 @@ button:focus-visible, input:focus-visible { outline: 2px solid #8b7cff; outline-
 .binance-app { min-height: 100vh; background: #0b0e11; color: #eaecef; font-family: Inter, ui-sans-serif, system-ui, sans-serif; }.binance-nav { position: sticky; top: 0; z-index: 20; min-height: 58px; display: flex; align-items: center; gap: 26px; padding: 0 24px; border-bottom: 1px solid #2b3139; background: rgba(11,14,17,.96); }.binance-wordmark { display: inline-flex; align-items: center; gap: 7px; color: #fcd535; font-size: 14px; font-weight: 800; letter-spacing: .04em; text-decoration: none; white-space: nowrap; }.binance-mark { display: grid; place-items: center; width: 24px; height: 24px; color: #181a20; background: #fcd535; border-radius: 4px; font-size: 12px; transform: rotate(45deg); }.binance-wordmark small { color: #707a8a; font: 700 8px ui-monospace, monospace; letter-spacing: .1em; }.binance-nav nav { display: flex; gap: 18px; }.binance-nav nav a { color: #aeb4bd; font-size: 11px; text-decoration: none; }.binance-nav nav a:hover { color: #fcd535; }.binance-nav-status { display: flex; gap: 8px; margin-left: auto; }.binance-nav-status span, .paper-state { display: inline-flex; align-items: center; gap: 5px; color: #0ecb81; border: 1px solid rgba(14,203,129,.28); border-radius: 4px; padding: 4px 6px; background: rgba(14,203,129,.07); font: 700 8px ui-monospace, monospace; letter-spacing: .06em; white-space: nowrap; }.binance-nav-status span:last-child { color: #fcd535; border-color: rgba(252,213,53,.3); background: rgba(252,213,53,.07); }.binance-shell { width: min(1440px, 100%); margin: 0 auto; padding: 24px; }.binance-hero { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(430px, .8fr); gap: 32px; align-items: end; padding: 28px 0 24px; }.binance-kicker { display: block; color: #fcd535; font: 700 9px ui-monospace, monospace; letter-spacing: .13em; }.binance-hero h1 { max-width: 650px; margin: 7px 0 10px; color: #f5f5f5; font-size: clamp(30px, 4vw, 48px); font-weight: 700; letter-spacing: -.045em; line-height: 1.06; }.binance-hero p { max-width: 660px; margin: 0; color: #929aa5; font-size: 13px; line-height: 1.6; }.binance-trust-grid { display: grid; grid-template-columns: repeat(3, 1fr); border: 1px solid #2b3139; border-radius: 8px; overflow: hidden; background: #1e2329; }.binance-trust-grid > div { min-width: 0; padding: 15px 14px; border-right: 1px solid #2b3139; }.binance-trust-grid > div:last-child { border-right: 0; }.binance-trust-grid svg { color: #fcd535; }.binance-trust-grid span { display: block; margin-top: 10px; color: #707a8a; font: 700 8px ui-monospace, monospace; letter-spacing: .08em; }.binance-trust-grid b { display: block; margin-top: 4px; color: #f5f5f5; font: 700 19px ui-monospace, monospace; letter-spacing: -.04em; }.binance-trust-grid small { display: block; overflow: hidden; margin-top: 3px; color: #929aa5; font-size: 8px; text-overflow: ellipsis; white-space: nowrap; }.binance-boundary { display: flex; align-items: flex-start; gap: 10px; margin: 0 0 14px; padding: 10px 12px; border: 1px solid rgba(252,213,53,.28); border-radius: 6px; color: #e7d28b; background: rgba(252,213,53,.06); }.binance-boundary svg { flex: 0 0 auto; color: #fcd535; margin-top: 1px; }.binance-boundary b { margin-right: 7px; color: #fcd535; font-size: 10px; }.binance-boundary span { color: #b9b195; font-size: 10px; }.binance-terminal-grid { display: grid; grid-template-columns: minmax(0, 1.7fr) minmax(310px, .7fr); gap: 14px; align-items: start; }.binance-terminal-main .crypto-terminal { border-color: #3d3a24; background: #16191d; }.binance-terminal-main .crypto-title { color: #fcd535; }.binance-terminal-main .crypto-title svg { color: #fcd535; filter: none; }.binance-terminal-main .crypto-read-only { color: #fcd535; border-color: rgba(252,213,53,.28); background: rgba(252,213,53,.08); }.binance-terminal-main .crypto-market-tabs button.active, .binance-terminal-main .crypto-market-tabs button:hover, .binance-terminal-main .crypto-intervals button.active, .binance-terminal-main .crypto-intervals button:hover { color: #181a20; background: #fcd535; }.binance-terminal-main .crypto-symbol-form button, .binance-terminal-main .crypto-refresh { color: #181a20; border-color: #fcd535; background: #fcd535; }.binance-terminal-main .crypto-symbol-form button:hover, .binance-terminal-main .crypto-refresh:hover { background: #f0b90b; }.binance-card { border: 1px solid #2b3139; border-radius: 8px; background: #1e2329; overflow: hidden; }.binance-card-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; padding: 15px 15px 11px; border-bottom: 1px solid #2b3139; }.binance-card-head h2 { margin: 5px 0 0; color: #f5f5f5; font-size: 15px; letter-spacing: -.02em; }.binance-card-head button { display: grid; place-items: center; width: 28px; height: 28px; border: 1px solid #3a414a; border-radius: 4px; color: #929aa5; background: #2b3139; }.binance-card-head button:hover { color: #fcd535; border-color: #fcd535; }.binance-tabs { display: flex; gap: 2px; padding: 9px 12px; overflow-x: auto; border-bottom: 1px solid #2b3139; }.binance-tabs button { flex: 1; border: 0; border-radius: 4px; padding: 6px 7px; color: #929aa5; background: transparent; font: 700 8px ui-monospace, monospace; white-space: nowrap; }.binance-tabs button.active, .binance-tabs button:hover { color: #181a20; background: #fcd535; }.radar-focus { display: grid; grid-template-columns: 1fr auto; gap: 2px 12px; padding: 13px 15px; border-bottom: 1px solid #2b3139; background: #171b20; }.radar-focus span { grid-column: 1 / -1; color: #707a8a; font: 700 8px ui-monospace, monospace; letter-spacing: .09em; }.radar-focus b { color: #f5f5f5; font: 700 19px ui-monospace, monospace; letter-spacing: -.04em; }.radar-focus strong { display: inline-flex; align-items: center; justify-self: end; gap: 3px; font: 700 11px ui-monospace, monospace; }.up { color: #0ecb81 !important; }.down { color: #f6465d !important; }.muted { color: #707a8a !important; }.binance-market-table { padding: 2px 15px 11px; }.binance-market-row { display: grid; grid-template-columns: 1.05fr 1fr .72fr .9fr; gap: 7px; align-items: center; min-height: 33px; border-bottom: 1px solid rgba(43,49,57,.75); color: #c5cad0; font: 9px ui-monospace, monospace; }.binance-market-row:last-child { border-bottom: 0; }.binance-market-row > span:nth-child(n+2) { text-align: right; }.binance-market-row b { color: #f5f5f5; font-weight: 700; }.table-heading { min-height: 27px; color: #707a8a; font-size: 8px; letter-spacing: .08em; }.binance-empty { min-height: 170px; display: grid; place-items: center; padding: 18px; color: #929aa5; font-size: 10px; line-height: 1.5; text-align: center; }.binance-lower-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 14px; margin-top: 14px; }.paper-plan > p { margin: 0; padding: 11px 15px; color: #929aa5; border-bottom: 1px solid #2b3139; font-size: 10px; line-height: 1.5; }.plan-input-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 9px; padding: 13px 15px; }.plan-input-grid label { color: #707a8a; font: 700 8px ui-monospace, monospace; letter-spacing: .08em; }.plan-input-grid input { display: block; width: 100%; margin-top: 5px; border: 1px solid #3a414a; border-radius: 4px; color: #f5f5f5; background: #171b20; padding: 8px; font: 600 11px ui-monospace, monospace; }.plan-input-grid input:focus { border-color: #fcd535; outline: 0; }.plan-metrics { display: grid; grid-template-columns: repeat(3, 1fr); border-top: 1px solid #2b3139; border-bottom: 1px solid #2b3139; }.plan-metrics div { min-width: 0; padding: 10px 13px; border-right: 1px solid #2b3139; }.plan-metrics div:last-child { border-right: 0; }.plan-metrics span { display: block; color: #707a8a; font: 700 8px ui-monospace, monospace; letter-spacing: .07em; }.plan-metrics b { display: block; overflow: hidden; margin-top: 4px; color: #f5f5f5; font: 700 12px ui-monospace, monospace; text-overflow: ellipsis; white-space: nowrap; }.plan-footer { display: flex; align-items: center; gap: 6px; padding: 10px 14px; color: #929aa5; font-size: 9px; }.plan-footer svg { color: #fcd535; }.policy-list { display: grid; gap: 0; padding: 3px 15px 11px; }.policy-list > div { display: flex; gap: 10px; padding: 11px 0; border-bottom: 1px solid #2b3139; }.policy-list > div:last-child { border-bottom: 0; }.policy-list svg { flex: 0 0 auto; color: #fcd535; margin-top: 1px; }.policy-list b { display: block; color: #eaecef; font-size: 10px; }.policy-list span { display: block; margin-top: 3px; color: #929aa5; font-size: 9px; line-height: 1.45; }
 @media (max-width: 1050px) { .binance-hero, .binance-terminal-grid { grid-template-columns: 1fr; }.binance-trust-grid { max-width: 760px; }.binance-radar { max-width: none; }.binance-market-table { max-height: 330px; overflow: auto; } }
 @media (max-width: 720px) { .binance-nav { min-height: 52px; gap: 10px; padding: 0 12px; }.binance-nav nav, .binance-nav-status span:first-child { display: none; }.binance-nav-status { margin-left: auto; }.binance-shell { padding: 14px 10px; }.binance-hero { gap: 18px; padding-top: 13px; }.binance-hero h1 { font-size: 31px; }.binance-hero p { font-size: 11px; }.binance-trust-grid > div { padding: 11px 9px; }.binance-trust-grid b { font-size: 15px; }.binance-trust-grid small { font-size: 7px; }.binance-boundary { font-size: 9px; }.binance-boundary b { display: block; margin: 0 0 3px; }.binance-boundary span { display: block; font-size: 9px; }.binance-lower-grid { grid-template-columns: 1fr; }.binance-terminal-main .crypto-terminal { border-radius: 7px; }.binance-market-row { grid-template-columns: 1.05fr 1fr .72fr .9fr; font-size: 8px; }.binance-wordmark { font-size: 11px; }.binance-wordmark small { display: none; }.binance-mark { width: 20px; height: 20px; font-size: 9px; }.paper-state { font-size: 7px; } }
+
+/* Live Trading Styles */
+.live-bot-teaser {
+  border: 2px solid var(--binance-green);
+}
+
+.live-teaser-content {
+  padding: 1.5rem;
+}
+
+.live-teaser-content p {
+  margin-bottom: 1rem;
+  font-size: 0.95rem;
+}
+
+.live-teaser-content ul {
+  margin: 1rem 0;
+  padding-left: 1.5rem;
+}
+
+.live-teaser-content li {
+  margin-bottom: 0.5rem;
+  color: var(--text-muted);
+}
+
+.live-teaser-content button {
+  margin-top: 1rem;
+  background: var(--binance-green);
+  color: white;
+  border: none;
+  padding: 0.75rem 1.5rem;
+  border-radius: 4px;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.live-teaser-content button:hover {
+  opacity: 0.9;
+}
+
+.live-teaser-warning {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1rem;
+  background: rgba(255, 183, 77, 0.1);
+  border-left: 3px solid var(--binance-yellow);
+  border-radius: 4px;
+  margin-top: 1.5rem;
+}
+
+.live-teaser-warning span {
+  font-size: 0.85rem;
+  color: var(--binance-yellow);
+}
+
+.live-bot-card .live-bot-banner.warning {
+  background: linear-gradient(135deg, rgba(255, 183, 77, 0.15), rgba(255, 152, 0, 0.1));
+  border-left: 4px solid var(--binance-yellow);
+  padding: 1rem;
+  border-radius: 4px;
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+  margin: 1rem 0;
+}
+
+.live-bot-card .live-bot-banner.warning b {
+  color: var(--binance-yellow);
+  display: block;
+  margin-bottom: 0.25rem;
+}
+
+.live-bot-card .live-bot-banner.warning span {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.live-account-card {
+  margin: 1.5rem 0;
+}
+
+.live-account-banner {
+  padding: 1rem;
+  border-radius: 4px;
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.live-account-banner.connected {
+  background: rgba(76, 175, 80, 0.1);
+  border-left: 4px solid var(--binance-green);
+}
+
+.live-account-banner.disconnected {
+  background: rgba(158, 158, 158, 0.1);
+  border-left: 4px solid var(--text-muted);
+}
+
+.live-credentials-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.live-credentials-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.live-credentials-form input[type="text"],
+.live-credentials-form input[type="password"] {
+  padding: 0.75rem;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  font-family: inherit;
+}
+
+.live-account-options {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  padding: 0.75rem;
+  background: var(--bg-secondary);
+  border-radius: 4px;
+}
+
+.live-account-type select {
+  width: 100%;
+  padding: 0.5rem;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+}
+
+.live-testnet-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.live-testnet-toggle input[type="checkbox"] {
+  width: auto;
+}
+
+.live-credentials-warning {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 1rem;
+  background: rgba(255, 183, 77, 0.1);
+  border-radius: 4px;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.live-credentials-warning b {
+  color: var(--binance-yellow);
+  display: block;
+  margin-bottom: 0.25rem;
+}
+
+.live-account-status {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.live-account-info {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+  padding: 1rem;
+  background: var(--bg-secondary);
+  border-radius: 4px;
+}
+
+.live-account-info > div {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.live-account-info span {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.live-account-info b {
+  font-size: 0.95rem;
+}
+
+.api-key-display {
+  font-family: monospace;
+  letter-spacing: 0.1em;
+}
+
+.api-key-display + button {
+  background: none;
+  border: none;
+  padding: 0.25rem;
+  cursor: pointer;
+  color: var(--text-muted);
+}
+
+.live-account-actions {
+  display: flex;
+  gap: 1rem;
+}
+
+.strategy-parameters {
+  margin: 1.5rem 0;
+  padding: 1rem;
+  background: var(--bg-secondary);
+  border-radius: 4px;
+}
+
+.strategy-parameters h4 {
+  margin-bottom: 1rem;
+  font-size: 0.9rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.parameter-sliders {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 1rem;
+}
+
+.parameter-sliders label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.parameter-sliders span {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.parameter-sliders input[type="range"] {
+  width: 100%;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--border-color);
+  appearance: none;
+  cursor: pointer;
+}
+
+.parameter-sliders input[type="range"]::-webkit-slider-thumb {
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--binance-green);
+  cursor: pointer;
+}
+
+.live-orders-preview {
+  margin-top: 1.5rem;
+  padding: 1rem;
+  background: var(--bg-secondary);
+  border-radius: 4px;
+}
+
+.live-orders-preview h4 {
+  margin-bottom: 1rem;
+  font-size: 0.9rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.live-order-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.live-order-row {
+  display: grid;
+  grid-template-columns: auto 1fr auto auto auto;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.75rem;
+  background: var(--bg-primary);
+  border-radius: 4px;
+  font-size: 0.85rem;
+}
+
+.order-status {
+  padding: 0.25rem 0.5rem;
+  border-radius: 3px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.order-status.submitted {
+  background: rgba(33, 150, 243, 0.2);
+  color: #2196f3;
+}
+
+.order-status.filled {
+  background: rgba(76, 175, 80, 0.2);
+  color: #4caf50;
+}
+
+.order-status.cancelled {
+  background: rgba(244, 67, 54, 0.2);
+  color: #f44336;
+}
+
+.order-status.pending {
+  background: rgba(255, 152, 0, 0.2);
+  color: #ff9800;
+}
+
+.live-bot-footnote {
+  margin-top: 1.5rem;
+  padding: 1rem;
+  background: rgba(255, 183, 77, 0.1);
+  border-radius: 4px;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  text-align: center;
+}
