@@ -8,7 +8,7 @@ import { z } from "zod";
 import type { MarketQuote } from "@shared/scanner";
 import { massiveNews, massiveProvider } from "./massive";
 import { finnhubNews, finnhubProvider, finnhubSymbols } from "./finnhub";
-import { addWatchlistItem, binancePaperAccountSummary, createAlertRule, createBacktestRun, createPaperOrder, createWatchlist, deleteAlertRule, deleteLayout, deletePreset, deleteWatchlist, deleteWatchlistItem, ensurePaperBotConfig, getDeepSeekLearningLedger, getProviderHealth, listAlertRules, listBacktestRuns, listBinancePaperOrders, listLayouts, listPaperBotRuns, listPaperOrders, listPresets, listWatchlistItems, listWatchlists, paperAccountSummary, saveLayout, savePaperBotConfig, savePreset } from "./db";
+import { addWatchlistItem, binancePaperAccountSummary, createAlertRule, createBacktestRun, createPaperOrder, createWatchlist, deleteAlertRule, deleteLayout, deletePreset, deleteWatchlist, deleteWatchlistItem, ensurePaperBotConfig, getDeepSeekLearningLedger, getProviderHealth, listAlertRules, listBacktestRuns, listBinancePaperOrders, listLayouts, listPaperBotRuns, listPaperOrders, listPresets, listWatchlistItems, listWatchlists, paperAccountSummary, removeWatchlistItem, saveLayout, savePaperBotConfig, savePreset, updateWatchlistItem, ensureBinanceLiveAccount, saveBinanceLiveCredentials, deleteBinanceLiveCredentials, listBinanceLiveOrders, createBinanceLiveOrder, updateBinanceLiveOrderStatus, syncBinanceLiveAccount } from "./db";
 import { assertPaperOnlyOrder, replayBars, runScannerBacktest } from "./backtest";
 import { checkMassiveFlatFileHealth } from "./massive-flatfiles";
 import { CRYPTO_INTERVALS, CRYPTO_MARKETS, unavailableCryptoQuote } from "@shared/crypto";
@@ -66,8 +66,10 @@ export const appRouter = router({
     createWatchlist: auditedProtectedProcedure.input(z.object({ name: z.string().min(1).max(120), columns: z.array(z.string()).max(20) })).mutation(({ ctx, input }) => createWatchlist(ctx.user.id, input.name, input.columns)),
     deleteWatchlist: auditedProtectedProcedure.input(z.object({ id: z.number().int().positive() })).mutation(({ ctx, input }) => deleteWatchlist(ctx.user.id, input.id)),
     watchlistItems: auditedProtectedProcedure.input(z.object({ watchlistId: z.number().int().positive() })).query(({ ctx, input }) => listWatchlistItems(ctx.user.id, input.watchlistId)),
-    addWatchlistItem: auditedProtectedProcedure.input(z.object({ watchlistId: z.number().int().positive(), symbol: z.string().min(1).max(16) })).mutation(({ ctx, input }) => addWatchlistItem(ctx.user.id, input.watchlistId, input.symbol)),
+    addWatchlistItem: auditedProtectedProcedure.input(z.object({ watchlistId: z.number().int().positive(), symbol: z.string().min(1).max(16), name: z.string().max(120).optional() })).mutation(({ ctx, input }) => addWatchlistItem(ctx.user.id, input.watchlistId, input.symbol, input.name)),
     deleteWatchlistItem: auditedProtectedProcedure.input(z.object({ id: z.number().int().positive() })).mutation(({ ctx, input }) => deleteWatchlistItem(ctx.user.id, input.id)),
+    updateWatchlistItem: auditedProtectedProcedure.input(z.object({ itemId: z.number().int().positive(), name: z.string().max(120).optional() })).mutation(({ ctx, input }) => updateWatchlistItem(ctx.user.id, input.itemId, input.name)),
+    removeWatchlistItem: auditedProtectedProcedure.input(z.object({ itemId: z.number().int().positive() })).mutation(({ ctx, input }) => removeWatchlistItem(ctx.user.id, input.itemId)),
     presets: auditedProtectedProcedure.query(({ ctx }) => listPresets(ctx.user.id)),
     savePreset: auditedProtectedProcedure.input(z.object({ name: z.string().min(1).max(120), scanner: z.string().max(80), thresholds: z.record(z.string(), z.unknown()) })).mutation(({ ctx, input }) => savePreset(ctx.user.id, input.name, input.scanner, input.thresholds)),
     deletePreset: auditedProtectedProcedure.input(z.object({ id: z.number().int().positive() })).mutation(({ ctx, input }) => deletePreset(ctx.user.id, input.id)),
@@ -95,6 +97,16 @@ export const appRouter = router({
     enableBot: auditedProtectedProcedure.input(z.object({ scheduleMinutes: z.union([z.literal(1), z.literal(5), z.literal(15)]) })).mutation(async ({ ctx, input }) => { try { const config = await enableScheduledPaperBot(ctx.user.id, input.scheduleMinutes); await safeAudit({ userId: ctx.user.id, action: "binance_paper_bot_enabled", resource: "binance-paper-bot", metadata: { scheduleMinutes: input.scheduleMinutes, mode: "paper" }, requestId: requestId(ctx.req) }); return config; } catch (error) { throw new TRPCError({ code: "BAD_REQUEST", message: error instanceof Error ? error.message : "Paper bot could not be enabled" }); } }),
     pauseBot: auditedProtectedProcedure.mutation(async ({ ctx }) => { const config = await pauseScheduledPaperBot(ctx.user.id); await safeAudit({ userId: ctx.user.id, action: "binance_paper_bot_paused", resource: "binance-paper-bot", metadata: { mode: "paper" }, requestId: requestId(ctx.req) }); return config; }),
     supportedIntervals: auditedProtectedProcedure.query(() => supportedBotIntervals),
+  }),
+
+  binanceLive: router({
+    account: auditedProtectedProcedure.query(({ ctx }) => ensureBinanceLiveAccount(ctx.user.id)),
+    saveCredentials: auditedProtectedProcedure.input(z.object({ apiKeyEncrypted: z.string().min(1), apiSecretEncrypted: z.string().min(1), accountType: z.enum(["spot", "futures"]).default("spot"), isTestnet: z.boolean().default(false) })).mutation(({ ctx, input }) => saveBinanceLiveCredentials(ctx.user.id, input)),
+    deleteCredentials: auditedProtectedProcedure.mutation(({ ctx }) => deleteBinanceLiveCredentials(ctx.user.id)),
+    orders: protectedProcedure.query(({ ctx }) => listBinanceLiveOrders(ctx.user.id)),
+    createOrder: auditedProtectedProcedure.input(z.object({ idempotencyKey: z.string().trim().min(8).max(96), symbol: z.string().trim().toUpperCase().regex(/^[A-Z0-9]{5,24}$/), side: z.enum(["buy", "sell"]), quantity: z.number().positive(), market: z.enum(CRYPTO_MARKETS).default("global-spot"), stopPrice: z.number().positive().optional(), targetPrice: z.number().positive().optional(), source: z.string().max(32).default("live-bot") })).mutation(({ ctx, input }) => createBinanceLiveOrder(ctx.user.id, input)),
+    updateOrderStatus: auditedProtectedProcedure.input(z.object({ idempotencyKey: z.string().trim().min(8).max(96), status: z.string().max(32), fillPrice: z.number().positive().optional() })).mutation(({ ctx, input }) => updateBinanceLiveOrderStatus(input.idempotencyKey, { status: input.status, fillPrice: input.fillPrice })),
+    syncAccount: auditedProtectedProcedure.input(z.object({ equity: z.number().positive() })).mutation(({ ctx, input }) => syncBinanceLiveAccount(ctx.user.id, input.equity)),
   }),
 
   // TODO: add feature routers here, e.g.
